@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+uploads
+*.log
+.env
+.env.*
+!.env.example
+!.env.local.example
+frontend/.next
+backend/dist
