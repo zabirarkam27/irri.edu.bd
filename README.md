@@ -1,52 +1,117 @@
 # International Rabindra Research Institute Website
 
-Production-oriented CMS website scaffold for International Rabindra Research Institute (IRRI). The project is split into a Next.js frontend and an Express/Prisma backend that communicate over REST APIs.
+CMS-driven website and admin dashboard for the International Rabindra Research Institute (IRRI). The project is split into a Next.js frontend and an Express/Prisma backend that communicate through REST APIs.
 
-## Live Site
+## Live Links
 
-- Vercel: https://irri-edu-bd.vercel.app
+- Website: https://irri-edu-bd.vercel.app
 - Admin: https://irri-edu-bd.vercel.app/admin/login
+- Repository: https://github.com/zabirarkam27/irri.edu.bd
 
 ## Tech Stack
 
-- Frontend: Next.js App Router, TypeScript, Tailwind CSS, Auth.js-compatible credentials flow
-- Backend: Node.js, Express, TypeScript, Prisma, PostgreSQL, Zod, bcrypt, JWT
-- Security: Helmet, CORS, rate limits, RBAC middleware, centralized errors
+- Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, Auth.js/NextAuth
+- Backend: Node.js, Express, TypeScript, Prisma, PostgreSQL
+- Validation and security: Zod, bcrypt, JWT, Helmet, CORS, rate limiting
 
-## Structure
+## Project Structure
 
 ```txt
-frontend/   Next.js public website and admin dashboard
-backend/    Express REST API, Prisma schema, seed data
+frontend/   Public website and admin dashboard
+backend/    REST API, Prisma schema, seed scripts
 ```
 
-## Setup
+## Prerequisites
 
-1. Install dependencies: `npm install`
-2. Copy env files: `copy frontend\.env.example frontend\.env.local` and `copy backend\.env.example backend\.env`
-3. Update database and secrets in `backend/.env`
-4. Generate Prisma client: `npm run prisma:generate --workspace=backend`
-5. Run migrations: `npm run prisma:migrate --workspace=backend`
-6. Seed data: `npm run seed --workspace=backend`
-7. Start both apps: `npm run dev`
+- Node.js 20 or newer
+- npm
+- PostgreSQL database
 
-## Local URLs
+## Environment Setup
 
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:5000`
-- Health check: `http://localhost:5000/health`
+Copy the example files and update the values for your machine:
+
+```powershell
+copy frontend\.env.example frontend\.env.local
+copy backend\.env.example backend\.env
+```
+
+Important values:
+
+- `backend/.env`: set `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`, and seed admin credentials.
+- `frontend/.env.local`: set `NEXT_PUBLIC_API_BASE_URL`, `NEXTAUTH_URL`, and `NEXTAUTH_SECRET`.
+- Never commit real `.env` files or production secrets.
+
+## Installation
+
+Install all workspace dependencies from the repository root:
+
+```powershell
+npm install
+```
+
+Generate the Prisma client:
+
+```powershell
+npm run prisma:generate --workspace=backend
+```
+
+Run database migrations:
+
+```powershell
+npm run prisma:migrate --workspace=backend
+```
+
+Seed the first admin user and starter content:
+
+```powershell
+npm run seed --workspace=backend
+```
+
+## Development
+
+Start frontend and backend together:
+
+```powershell
+npm run dev
+```
+
+Or run them separately:
+
+```powershell
+npm run dev:frontend
+npm run dev:backend
+```
+
+Local URLs:
+
+- Frontend: http://localhost:3000
+- Admin login: http://localhost:3000/admin/login
+- Backend: http://localhost:5000
+- Health check: http://localhost:5000/health
 
 ## Default Admin
 
-The seed command reads admin credentials from environment variables:
+The seed script reads the default admin credentials from `backend/.env`:
 
 ```env
 SEED_ADMIN_EMAIL="admin@irri.edu.com"
 SEED_ADMIN_PASSWORD="ChangeMe123!"
 ```
 
-Change these before production use.
+Change the email and password before seeding any production database.
 
-## Security Notes
+## Useful Commands
 
-Never commit real `.env` files or production secrets. Use strong JWT/Auth secrets, HTTPS, strict CORS origins, secure cookies, and database backups in production.
+```powershell
+npm run build
+npm run lint
+npm run prisma:studio --workspace=backend
+```
+
+## Deployment Notes
+
+- Deploy the frontend on Vercel.
+- Deploy the backend with a Node.js host that can reach the PostgreSQL database.
+- Set production environment variables in the hosting dashboard.
+- Use strong secrets, HTTPS-only URLs, secure CORS origins, and regular database backups.
