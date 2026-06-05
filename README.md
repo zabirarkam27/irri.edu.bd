@@ -2,6 +2,10 @@
 
 Production-oriented CMS website scaffold for International Rabindra Research Institute (IRRI). The project is split into a Next.js frontend and an Express/Prisma backend that communicate over REST APIs.
 
+## Live Site
+
+- Vercel: https://irri-edu-bd.vercel.app
+
 ## Tech Stack
 
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, Auth.js-compatible credentials flow
