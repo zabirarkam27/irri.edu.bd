@@ -5,6 +5,7 @@ Production-oriented CMS website scaffold for International Rabindra Research Ins
 ## Live Site
 
 - Vercel: https://irri-edu-bd.vercel.app
+- Admin: https://irri-edu-bd.vercel.app/admin/login
 
 ## Tech Stack
 
