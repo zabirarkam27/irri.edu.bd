@@ -7,7 +7,7 @@ export function GalleryPreview() {
     <section className="border-y border-border bg-surface">
       <div className="container-x py-16 md:py-20 lg:py-24">
         <SectionHeader eyebrow="Gallery" title="Campus, culture, and archive moments" href="/gallery" />
-        <div className="mt-8 grid auto-rows-[170px] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid auto-rows-[170px] flex grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((item, index) => (
             <div key={item} className={index === 0 || index === 5 ? "group relative overflow-hidden rounded-2xl border border-border bg-gradient-brand shadow-soft sm:col-span-2 sm:row-span-2" : "group relative overflow-hidden rounded-2xl border border-border bg-gradient-brand-soft shadow-soft"}>
               <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-105">

@@ -6,7 +6,7 @@ import { institution } from "@/features/home/data";
 const stats = [
   ["Established", institution.established],
   ["Departments", "3+"],
-  ["Degree Levels", "Honors · Masters · PhD"]
+  ["Degree Levels", "Honors · Masters · M-Phil · PhD"]
 ];
 
 export function HeroSection() {

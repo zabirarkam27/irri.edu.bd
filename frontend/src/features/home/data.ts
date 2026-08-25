@@ -1,7 +1,7 @@
 export const institution = {
   name: "International Rabindra Research Institute",
-  nameBn: "আন্তর্জাতিক রবীন্দ্র রিসার্চ ইনস্টিটিউট",
-  motto: "To reach excellence through practicing our own history and culture.",
+  nameBn: "আন্তর্জাতিক রবীন্দ্র গবেষণা ইনস্টিটিউট",
+  motto: "To reach in excellence through practicing own history and culture.",
   mission:
     "Promoting the thoughts, literature, music, philosophy, and cultural legacy of Rabindranath Tagore through research, education, and academic practice.",
   vision:
