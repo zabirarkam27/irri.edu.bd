@@ -6,6 +6,7 @@ import { FormTextarea } from "@/components/forms/FormTextarea";
 import { Button } from "@/components/ui/button";
 import { changeAdminRecord, deleteContent, type FormState } from "./actions";
 import { formValue, type CmsRecord, type Field } from "./config";
+import { MediaPicker } from "@/features/media/MediaControls";
 
 export const roles = ["SUPER_ADMIN", "ADMIN", "EDITOR", "MODERATOR"];
 const initialState: FormState = {};
@@ -24,6 +25,9 @@ export function CmsForm({ fields, record, options, action }: {
         const raw = state.values?.[field.name] ?? existing;
         const value = field.kind === "date" ? raw.slice(0, 19) : raw;
         const props = { name: field.name, required: field.required, defaultValue: value };
+        if (["photoUrl", "ogImage", "fileUrl"].includes(field.name)) {
+          return <MediaPicker key={field.name} kind={field.name === "fileUrl" ? "DOCUMENT" : "IMAGE"} name={field.name} initial={value} label={field.label} />;
+        }
         if (field.kind === "area") return <FormTextarea key={field.name} label={field.label} {...props} />;
         if (field.kind === "enum" || field.kind === "relation") return (
           <label key={field.name} className="grid gap-2 text-sm font-medium">{field.label}

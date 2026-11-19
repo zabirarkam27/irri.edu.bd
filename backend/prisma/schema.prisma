@@ -16,6 +16,8 @@ enum Role {
 
 enum Status {
   DRAFT
+  IN_REVIEW
+  APPROVED
   PUBLISHED
   ARCHIVED
 }
@@ -259,9 +261,35 @@ model MediaAsset {
   size       Int
   type       MediaType
   altText    String?
+  storageKey String?
+  thumbnailKey String?
   uploadedBy String?
   uploader   User?     @relation(fields: [uploadedBy], references: [id])
   createdAt  DateTime  @default(now())
+}
+
+model CmsSlugRedirect {
+  model    String
+  oldSlug  String
+  recordId String
+
+  @@id([model, oldSlug])
+  @@index([model, recordId])
+}
+
+model PublicationSchedule {
+  model       String
+  recordId    String
+  scheduledAt DateTime
+  scheduledBy String
+
+  @@id([model, recordId])
+  @@index([scheduledAt])
+}
+
+model MediaGarbage {
+  key       String   @id
+  createdAt DateTime @default(now())
 }
 
 model ContactMessage {

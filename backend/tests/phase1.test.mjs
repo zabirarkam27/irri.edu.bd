@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import jwt from "jsonwebtoken";
+import sharp from "sharp";
 import { app } from "../dist/src/app.js";
 import { prisma } from "../dist/src/lib/prisma.js";
 
@@ -61,6 +62,13 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
   const article = { title: "Integration news", slug, content: "Original content", status: "DRAFT" };
   assert.equal((await api("/admin/news")).status, 401);
   const save = (path, method, body) => api(path, { method, headers, body: JSON.stringify(body) });
+  const transition = (path, action, fields = {}) => save(path + "/editorial", "POST", { action, ...fields });
+  async function publish(path) {
+    for (const action of ["submit", "approve", "publish"]) {
+      const result = await transition(path, action);
+      assert.equal(result.status, 200, `${path} ${action}: ${(await result.json()).message}`);
+    }
+  }
   assert.equal((await save("/admin/news", "POST", { title: "Missing content" })).status, 400);
   const created = await save("/admin/news", "POST", article);
   assert.equal(created.status, 201);
@@ -76,12 +84,13 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
     const matches = await (await api("/admin/news?status=DRAFT&search=Integration%20news&limit=1", { headers })).json();
     assert.equal(matches.data.length, 1);
     assert.ok(matches.meta.total >= 1);
-    assert.equal((await save(adminDetail, "PATCH", { status: "PUBLISHED", content: "Updated content" })).status, 200);
+    assert.equal((await save(adminDetail, "PATCH", { status: "PUBLISHED" })).status, 409);
+    assert.equal((await save(adminDetail, "PATCH", { content: "Updated content" })).status, 200);
+    assert.equal((await transition(adminDetail, "publish")).status, 403);
+    await publish(adminDetail);
     assert.equal((await (await api(publicDetail)).json()).data.content, "Updated content");
-    for (const status of ["DRAFT", "ARCHIVED"]) {
-      assert.equal((await save(adminDetail, "PATCH", { status })).status, 200);
-      assert.equal((await api(publicDetail)).status, 404);
-    }
+    assert.equal((await transition(adminDetail, "archive")).status, 200);
+    assert.equal((await api(publicDetail)).status, 404);
     assert.equal((await api(`/news/${post.id}`)).status, 404);
     await prisma.user.update({ where: { email }, data: { role: "EDITOR" } });
     try {
@@ -127,14 +136,18 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
         assert.equal((await api(detail, { headers })).status, 200);
         if ("status" in status) {
           assert.equal((await api(`/${resource}/${slug}`)).status, 404);
-          assert.equal((await save(detail, "PATCH", { status: "PUBLISHED" })).status, 200);
+          await publish(detail);
           assert.equal((await api(`/${resource}/${slug}`)).status, 200);
           const isolatedSlug = `${slug}-updated`;
+          assert.equal((await transition(detail, "return")).status, 200);
           assert.equal((await save(detail, "PATCH", { slug: isolatedSlug })).status, 200);
           assert.equal((await api(`/${resource}/${slug}`)).status, 404);
+          await publish(detail);
           assert.equal((await api(`/${resource}/${isolatedSlug}`)).status, 200);
-          assert.equal((await save(detail, "PATCH", { status: "ARCHIVED" })).status, 200);
+          assert.equal((await (await api(`/${resource}/${slug}`)).json()).data.slug, isolatedSlug);
+          assert.equal((await transition(detail, "archive")).status, 200);
           assert.equal((await api(`/${resource}/${isolatedSlug}`)).status, 404);
+          assert.equal((await transition(detail, "return")).status, 200);
         }
         const list = await api(`/admin/${resource}?search=CMS&limit=1&page=1`, { headers });
         assert.equal(list.status, 200);
@@ -144,7 +157,7 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
       assert.equal((await save(`/admin/courses/${records.get("courses").id}`, "PATCH", { programId: "missing-program" })).status, 409);
       const about = await prisma.page.findUnique({ where: { slug: "about" } });
       if (about) {
-        assert.equal((await save(`/admin/pages/${about.id}`, "PATCH", { slug: `test-${randomUUID()}` })).status, 400);
+        assert.ok([400, 409].includes((await save(`/admin/pages/${about.id}`, "PATCH", { slug: `test-${randomUUID()}` })).status));
       }
       assert.equal((await save(`/admin/publications/${records.get("publications").id}`, "PATCH", { fileUrl: "/uploads/test-file" })).status, 200);
       assert.equal((await api("/admin/dashboard", { headers })).status, 200);
@@ -207,6 +220,83 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
     }
   });
 
+  await t.test("private media lifecycle and scheduled publication", async () => {
+    const image = await sharp({ create: { width: 800, height: 480, channels: 3, background: "#045c49" } }).png().toBuffer();
+    const replacement = await sharp({ create: { width: 800, height: 480, channels: 3, background: "#253754" } }).png().toBuffer();
+    const form = (bytes, filename, mime) => {
+      const payload = new FormData();
+      payload.set("file", new Blob([bytes], { type: mime }), filename);
+      payload.set("altText", "Integration media");
+      return payload;
+    };
+    const mediaRequest = (path, method, body) => api("/admin/media" + path, {
+      method, headers: { Authorization: headers.Authorization }, body
+    });
+    const rejected = await mediaRequest("/upload", "POST", form(Buffer.from("not an image"), "fake.png", "image/png"));
+    assert.equal(rejected.status, 400);
+    const uploaded = await mediaRequest("/upload", "POST", form(image, "test.png", "image/png"));
+    const { data: asset, message } = await uploaded.json();
+    assert.equal(uploaded.status, 201, message);
+    const privatePath = `/${asset.url.split("/").slice(3).join("/")}`;
+    let album;
+    let attachment;
+    try {
+      assert.equal((await api(privatePath)).status, 404);
+      assert.equal((await api(`/admin/media/${asset.id}/file`)).status, 401);
+      const thumb = await mediaRequest(`/${asset.id}/file?thumb=1`, "GET");
+      assert.equal(thumb.status, 200);
+      assert.equal(thumb.headers.get("content-type"), "image/webp");
+      assert.equal((await sharp(Buffer.from(await thumb.arrayBuffer())).metadata()).width, 640);
+      assert.equal((await mediaRequest(`/${asset.id}/file`, "PUT", form(replacement, "replacement.png", "image/png"))).status, 200);
+      const slug = `media-${randomUUID()}`;
+      const created = await save("/admin/gallery-albums", "POST", { title: "Media integration album", slug });
+      assert.equal(created.status, 201);
+      album = (await created.json()).data;
+      const added = await save(`/admin/media/gallery/${album.id}`, "POST", { assetId: asset.id, altText: "Image in album", caption: "Test caption", order: 1 });
+      assert.equal(added.status, 201);
+      attachment = (await added.json()).data;
+      assert.equal((await mediaRequest(`/${asset.id}`, "DELETE")).status, 409);
+      assert.equal((await api(privatePath)).status, 404);
+      const path = `/admin/gallery-albums/${album.id}`;
+      assert.equal((await transition(path, "submit")).status, 200);
+      assert.equal((await transition(path, "approve", { comment: "Reviewed fixture" })).status, 200);
+      assert.equal((await api(privatePath)).status, 404);
+      const secret = process.env.CRON_SECRET;
+      if (secret) {
+        assert.equal((await api("/editorial/run")).status, 401);
+        assert.equal((await transition(path, "schedule", { scheduledAt: new Date(Date.now() + 120_000).toISOString() })).status, 200);
+        assert.equal((await api(privatePath)).status, 404);
+        await prisma.publicationSchedule.update({
+          where: { model_recordId: { model: "galleryAlbum", recordId: album.id } },
+          data: { scheduledAt: new Date(Date.now() - 1000) }
+        });
+        const run = () => api("/editorial/run", { headers: { Authorization: `Bearer ${secret}` } });
+        assert.equal((await (await run()).json()).data.published, 1);
+        assert.equal((await (await run()).json()).data.published, 0);
+      } else {
+        assert.equal((await transition(path, "publish")).status, 200);
+      }
+      const publicFile = await api(privatePath);
+      assert.equal(publicFile.status, 200);
+      assert.equal(publicFile.headers.get("cache-control"), "private, no-store");
+      assert.deepEqual(Buffer.from(await publicFile.arrayBuffer()), replacement);
+      assert.equal((await transition(path, "archive")).status, 200);
+      assert.equal((await api(privatePath)).status, 404);
+      assert.equal((await transition(path, "return")).status, 200);
+      assert.equal((await mediaRequest(`/gallery/images/${attachment.id}`, "DELETE")).status, 200);
+      attachment = undefined;
+      assert.equal((await mediaRequest(`/${asset.id}`, "DELETE")).status, 200);
+      assert.equal((await mediaRequest(`/${asset.id}/file`, "GET")).status, 404);
+    } finally {
+      if (attachment) await prisma.galleryImage.deleteMany({ where: { id: attachment.id } });
+      if (album) {
+        await prisma.publicationSchedule.deleteMany({ where: { model: "galleryAlbum", recordId: album.id } });
+        await prisma.galleryAlbum.deleteMany({ where: { id: album.id } });
+      }
+      await mediaRequest(`/${asset.id}`, "DELETE");
+    }
+  });
+
   if (verifyFrontend) {
     const origin = "http://127.0.0.1:3301";
     const requireFrontend = createRequire(new URL("../../frontend/package.json", import.meta.url));
@@ -260,7 +350,7 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
     assert.equal(session.user.email, email);
     assert.ok(!JSON.stringify(session).includes("backendToken"));
     assert.match(await (await visit("/admin/news")).text(), /New post/);
-    async function submitAdminForm(path, marker, fields) {
+    async function submitAdminForm(path, marker, fields, expected = 303) {
       const response = await visit(path);
       assert.equal(response.status, 200);
       const markup = await response.text();
@@ -275,20 +365,25 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
       }
       for (const [key, value] of Object.entries(fields)) form.set(key, value);
       const saved = await visit(path, form);
-      assert.equal(saved.status, 303, `Form submission: ${path}`);
+      assert.equal(saved.status, expected, `Form submission: ${path}`);
     }
     const uiSlug = `ui-${randomUUID()}`;
     const fields = {
       title: "News created through admin form",
       slug: uiSlug,
       content: "Published through the real admin server action.",
-      status: "PUBLISHED"
+      status: "DRAFT"
     };
     try {
       await submitAdminForm("/admin/news/new", "title", fields);
+      const { id } = await prisma.newsPost.findUniqueOrThrow({ where: { slug: uiSlug }, select: { id: true } });
+      assert.equal((await api(`/news/${uiSlug}`)).status, 404);
+      for (const action of ["submit", "approve", "publish"]) {
+        await submitAdminForm(`/admin/news/${id}`, "comment", { action }, 200);
+      }
       assert.match(await (await visit(`/news/${uiSlug}`)).text(), /Published through the real admin server action/);
       assert.match(await (await visit("/")).text(), /News created through admin form/);
-      const { id } = await prisma.newsPost.findUniqueOrThrow({ where: { slug: uiSlug }, select: { id: true } });
+      await submitAdminForm(`/admin/news/${id}`, "comment", { action: "return" }, 200);
       await submitAdminForm(`/admin/news/${id}/edit`, "title", { ...fields, status: "DRAFT", content: "Edited draft content" });
       const unpublished = await visit(`/news/${uiSlug}`);
       // Next.js can stream an HTTP 200 before rendering its not-found boundary.
@@ -307,9 +402,26 @@ test("CMS authorization, news lifecycle and optional frontend integration", asyn
       assert.equal(response.status, 200, path);
       assert.doesNotMatch(await response.text(), /This view could not be loaded/);
     }
+    const imageName = `ui-${randomUUID()}.png`;
+    const imageData = await sharp({ create: { width: 16, height: 16, channels: 3, background: "#374151" } }).png().toBuffer();
+    try {
+      await submitAdminForm("/admin/media", "file", { file: new File([imageData], imageName, { type: "image/png" }), altText: "UI fixture" }, 200);
+      const asset = await prisma.mediaAsset.findFirstOrThrow({ where: { filename: imageName } });
+      const preview = await visit(`/api/admin/media/${asset.id}?thumb=1`);
+      assert.equal(preview.status, 200);
+      assert.equal(preview.headers.get("content-type"), "image/webp");
+      assert.equal((await api(`/media/files/${asset.id}`)).status, 404);
+      const choices = await (await visit(`/api/admin/media?kind=IMAGE&search=${imageName}`)).json();
+      assert.equal(choices.data[0].url, asset.url);
+    } finally {
+      const asset = await prisma.mediaAsset.findFirst({ where: { filename: imageName } });
+      if (asset) await api(`/admin/media/${asset.id}`, { method: "DELETE", headers });
+    }
     const pageSlug = `phase2-${randomUUID()}`;
     try {
-      await submitAdminForm("/admin/pages/new", "title", { title: "Phase 2 public page", slug: pageSlug, content: "Real Pages CMS content", status: "PUBLISHED" });
+      await submitAdminForm("/admin/pages/new", "title", { title: "Phase 2 public page", slug: pageSlug, content: "Real Pages CMS content", status: "DRAFT" });
+      const page = await prisma.page.findUniqueOrThrow({ where: { slug: pageSlug } });
+      await publish(`/admin/pages/${page.id}`);
       assert.match(await (await visit(`/pages/${pageSlug}`)).text(), /Real Pages CMS content/);
     } finally {
       await prisma.page.deleteMany({ where: { slug: pageSlug } });

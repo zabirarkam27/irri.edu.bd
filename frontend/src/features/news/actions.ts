@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { adminNewsRequest } from "./admin";
-import { NewsRequestError, newsStatuses, type NewsPost } from "./data";
+import { NewsRequestError, type NewsPost } from "./data";
 
 const formSchema = z.object({
   title: z.string().trim().min(2).max(250),
@@ -16,8 +16,7 @@ const formSchema = z.object({
   contentBn: z.string().trim().max(100000),
   excerpt: z.string().trim().max(500),
   seoTitle: z.string().trim().max(250),
-  metaDescription: z.string().trim().max(500),
-  status: z.enum(newsStatuses)
+  metaDescription: z.string().trim().max(500)
 });
 
 export type NewsFormState = { error?: string; values?: Record<string, string> };
@@ -38,7 +37,7 @@ export async function saveNews(id: string | null, _previous: NewsFormState, form
     if (error instanceof NewsRequestError && error.status === 401) redirect("/admin/login");
     return { error: error instanceof NewsRequestError ? error.message : "The news post could not be saved.", values };
   }
-  redirect("/admin/news");
+  redirect(id ? `/admin/news/${id}` : "/admin/news");
 }
 
 export async function removeNews(id: string, _previous: NewsFormState, form: FormData): Promise<NewsFormState> {

@@ -50,6 +50,7 @@ const directories = {
 type DirectoryRecord = {
   id: string; name?: string; email?: string; phone?: string; subject?: string; message?: string; isRead?: boolean;
   role?: string; isActive?: boolean; action?: string; entity?: string; entityId?: string; userId?: string;
+  oldValue?: { status?: string }; newValue?: { status?: string; comment?: string; scheduledAt?: string };
   filename?: string; url?: string; mimeType?: string; size?: number; createdAt: string;
 };
 
@@ -94,6 +95,9 @@ export async function AdminDirectory({ kind, searchParams }: { kind: keyof typeo
           <p className="font-semibold">{record.action}</p>
           <p className="text-sm">{record.entity} {record.entityId}</p>
           <p className="text-xs text-muted-foreground">Actor: {record.userId ?? "System"}</p>
+          {record.oldValue?.status && record.newValue?.status && <p className="text-sm">{record.oldValue.status} to {record.newValue.status}</p>}
+          {record.newValue?.comment && <p className="whitespace-pre-wrap text-sm">{record.newValue.comment}</p>}
+          {record.newValue?.scheduledAt && <p className="text-sm">{record.newValue.scheduledAt.slice(0, 16).replace("T", " ")} UTC</p>}
         </>}
         {kind === "media" && <>
           <p className="font-semibold">{record.filename}</p>

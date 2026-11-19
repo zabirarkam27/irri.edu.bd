@@ -37,7 +37,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
                 <div className="min-w-0 break-words"><p className="font-medium">{post.title}</p><p className="text-sm text-muted-foreground">{post.status}</p></div>
                 <div className="flex gap-4 text-sm">
                   <Link className="underline" href={`/admin/news/${post.id}`}>Preview</Link>
-                  <Link className="underline" href={`/admin/news/${post.id}/edit`}>Edit</Link>
+                  {post.status === "DRAFT" && <Link className="underline" href={`/admin/news/${post.id}/edit`}>Edit</Link>}
                 </div>
               </li>
             ))}

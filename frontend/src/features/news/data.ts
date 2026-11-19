@@ -1,6 +1,6 @@
 import { siteConfig } from "@/config/site";
 
-export const newsStatuses = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export const newsStatuses = ["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"] as const;
 export type NewsStatus = typeof newsStatuses[number];
 export type NewsPost = {
   id: string;

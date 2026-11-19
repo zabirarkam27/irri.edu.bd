@@ -31,7 +31,7 @@ function parse(fields: Field[], form: FormData, institution = false) {
     } else if (field.kind === "enum" && !field.options?.includes(value)) {
       error ??= `${field.label} is not valid.`;
     } else {
-      if (field.kind === "url" && (institution || !/^\/uploads\/[a-z0-9][a-z0-9._-]*$/i.test(value))) {
+      if (field.kind === "url" && (institution || !/^(?:\/uploads\/[a-z0-9][a-z0-9._-]*|\/api\/v1\/media\/files\/[a-z0-9-]{1,80})$/i.test(value))) {
         try {
           if (!["http:", "https:"].includes(new URL(value).protocol)) throw new Error();
         } catch {
@@ -55,14 +55,14 @@ const json = (method: string, body: unknown): RequestInit => ({
 export async function saveContent(key: string, id: string | null, _state: FormState, form: FormData): Promise<FormState> {
   if (!Object.hasOwn(resources, key)) return { error: "Unknown content type." };
   const { fields, api } = resources[key];
-  const { values, body, error } = parse(fields, form);
+  const { values, body, error } = parse(fields.filter((field) => field.name !== "status"), form);
   if (error) return { values, error };
   try {
     await adminRequest(`/admin/${api}${id ? `/${encodeURIComponent(id)}` : ""}`, json(id ? "PATCH" : "POST", body));
   } catch (failure) {
     return { values, error: errorMessage(failure) };
   }
-  redirect(`/admin/${key}`);
+  redirect(`/admin/${key}${id ? `${key === "gallery" ? "/albums" : ""}/${id}` : ""}`);
 }
 
 export async function deleteContent(key: string, id: string, _state: FormState, form: FormData): Promise<FormState> {

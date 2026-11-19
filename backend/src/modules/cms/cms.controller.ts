@@ -7,6 +7,8 @@ import { sendResponse } from "@/utils/sendResponse";
 import * as service from "@/modules/cms/cms.service";
 import type { ModelName } from "@/modules/cms/cms.service";
 import { prisma } from "@/lib/prisma";
+import { hasEditorialWorkflow } from "./editorial";
+import { validateMediaReferences } from "@/modules/media/references";
 
 const navigationPageSlugs = new Set(["about", "history", "mission-vision", "research"]);
 
@@ -33,14 +35,16 @@ export function detailController(model: ModelName, publishedOnly = false): Reque
 export function createController(model: ModelName): RequestHandler {
   return catchAsync(async (req, res) => {
     if (model === "event") validateEventDates(req.body.startsAt, req.body.endsAt);
-    if (model === "newsPost" && req.body.status === "PUBLISHED" && req.body.publishedAt === undefined) {
-      req.body.publishedAt = new Date();
+    if (hasEditorialWorkflow(model)) {
+      if (req.body.status && req.body.status !== "DRAFT") throw new AppError(400, "New content must start as a draft");
+      req.body.status = "DRAFT";
     }
     const data = await prisma.$transaction(async (db) => {
+      await validateMediaReferences(db, req.body);
       const record = await service.create(model, req.body, db);
       await writeAudit(req, `CREATE_${model.toUpperCase()}`, model, record.id, undefined, auditFields(record), db);
       return record;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     sendResponse(res, 201, { success: true, message: "Data created successfully", data });
   });
 }
@@ -51,14 +55,21 @@ export function updateController(model: ModelName): RequestHandler {
     const data = await prisma.$transaction(async (db) => {
       const oldValue = await service.findById(model, id, db);
       if (!oldValue) throw new AppError(404, "Record not found");
+      if (hasEditorialWorkflow(model) && (oldValue.status !== "DRAFT" || (req.body.status && req.body.status !== "DRAFT"))) {
+        throw new AppError(409, "Return this record to draft before editing it, or use an editorial action");
+      }
       if (model === "page" && navigationPageSlugs.has(oldValue.slug) && req.body.slug && req.body.slug !== oldValue.slug) {
         throw new AppError(400, "This slug is used by site navigation and cannot be renamed");
       }
       if (model === "event") validateEventDates(req.body.startsAt ?? oldValue.startsAt, req.body.endsAt === undefined ? oldValue.endsAt : req.body.endsAt);
-      if (model === "newsPost" && req.body.status === "PUBLISHED" && !oldValue.publishedAt && req.body.publishedAt === undefined) {
-        req.body.publishedAt = new Date();
-      }
+      await validateMediaReferences(db, req.body);
       const record = await service.update(model, id, req.body, db);
+      if (typeof oldValue.slug === "string" && record.slug !== oldValue.slug && hasEditorialWorkflow(model)) {
+        await db.cmsSlugRedirect.upsert({
+          where: { model_oldSlug: { model, oldSlug: oldValue.slug } },
+          create: { model, oldSlug: oldValue.slug, recordId: id }, update: { recordId: id }
+        });
+      }
       await writeAudit(req, `UPDATE_${model.toUpperCase()}`, model, record.id, auditFields(oldValue), auditFields(record), db);
       return record;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -79,10 +90,17 @@ export function deleteController(model: ModelName): RequestHandler {
   return catchAsync(async (req, res) => {
     const id = String(req.params.id);
     const data = await prisma.$transaction(async (db) => {
+      const previous = await service.findById(model, id, db);
+      if (!previous) throw new AppError(404, "Record not found");
+      if (hasEditorialWorkflow(model) && !["DRAFT", "ARCHIVED"].includes(previous.status)) {
+        throw new AppError(409, "Return the record to draft or archive it before deleting");
+      }
       const record = await service.remove(model, id, db);
+      await db.cmsSlugRedirect.deleteMany({ where: { model, recordId: id } });
+      await db.publicationSchedule.deleteMany({ where: { model, recordId: id } });
       await writeAudit(req, `DELETE_${model.toUpperCase()}`, model, record.id, auditFields(record), undefined, db);
       return record;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     sendResponse(res, 200, { success: true, message: "Data deleted successfully", data });
   });
 }

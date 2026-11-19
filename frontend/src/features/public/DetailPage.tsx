@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import { PageHero } from "@/components/shared/PageHero";
 import { SiteFooter } from "@/components/shared/SiteFooter";
@@ -22,11 +22,17 @@ export const loadPublicRecord = cache(async (type: string, slug: string) => {
 export function publicAsset(value: unknown) {
   if (typeof value !== "string") return undefined;
   try {
-    const url = value.startsWith("/uploads/") ? new URL(value, siteConfig.apiBaseUrl) : new URL(value);
+    const url = value.startsWith("/uploads/") || /^\/api\/v1\/media\/files\/[a-z0-9-]{1,80}$/i.test(value)
+      ? new URL(value, siteConfig.apiBaseUrl) : new URL(value);
     return ["http:", "https:"].includes(url.protocol) ? url.href : undefined;
   } catch {
     return undefined;
   }
+}
+
+export function publicThumbnail(value: unknown) {
+  const url = publicAsset(value);
+  return url && typeof value === "string" && value.startsWith("/api/v1/media/files/") ? `${url}?thumb=1` : url;
 }
 
 const utc = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
@@ -47,13 +53,19 @@ export async function publicContentMetadata(type: string, slug: string, path: st
 
 export async function DetailPage({ type, slug }: { type: string; slug: string }) {
   const record = await loadPublicRecord(type, slug);
+  const base = { programs: "academic-programs", people: "administration", "gallery-albums": "gallery" }[type] ?? type;
+  if (typeof record.slug === "string" && record.slug !== slug) permanentRedirect(`/${base}/${encodeURIComponent(record.slug)}`);
   const title = formValue(record.title ?? record.name);
   const start = dateLabel(record.startsAt ?? record.publishedAt);
   const end = dateLabel(record.endsAt);
   const file = publicAsset(record.fileUrl);
   const photo = publicAsset(record.photoUrl);
   const images = Array.isArray(record.images) ? record.images : [];
-  const base = { programs: "academic-programs", people: "administration", "gallery-albums": "gallery" }[type] ?? type;
+  const relatedQuery = type === "programs" ? { resource: "courses", filter: "programId", path: "courses", title: "Related courses" }
+    : type === "departments" ? { resource: "programs", filter: "departmentId", path: "academic-programs", title: "Department programs" } : null;
+  const related = relatedQuery && await newsRequest<CmsRecord[]>(
+    `/${relatedQuery.resource}?${new URLSearchParams({ [relatedQuery.filter]: record.id, limit: "6" })}`
+  ).catch(() => null);
   return <>
     <SiteHeader />
     <main>
@@ -74,11 +86,17 @@ export async function DetailPage({ type, slug }: { type: string; slug: string })
           {images.map((image) => {
             const url = publicAsset(image.url);
             return url && <figure key={image.id}>
-              <img src={url} alt={formValue(image.altText)} width={640} height={400} loading="lazy" className="aspect-[8/5] w-full rounded-md object-cover" />
+              <img src={publicThumbnail(image.url)} alt={formValue(image.altText)} width={640} height={400} loading="lazy" className="aspect-[8/5] w-full rounded-md object-cover" />
               {image.caption && <figcaption className="mt-2 text-sm">{image.caption}</figcaption>}
             </figure>;
           })}
         </div>}
+        {relatedQuery && Boolean(related?.data.length) && <section className="grid gap-2 border-t pt-4">
+          <h2 className="font-semibold">{relatedQuery.title}</h2>
+          <ul className="grid gap-2">{related?.data.map((item) => <li key={item.id}>
+            <Link href={`/${relatedQuery.path}/${encodeURIComponent(formValue(item.slug))}`} className="underline">{formValue(item.title)}</Link>
+          </li>)}</ul>
+        </section>}
       </Container>
     </main>
     <SiteFooter />

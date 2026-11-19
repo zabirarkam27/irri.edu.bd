@@ -1,6 +1,6 @@
 import { cache } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { SiteShell } from "@/components/site/SiteShell";
 import { siteConfig } from "@/config/site";
 import { createMetadata } from "@/lib/seo";
@@ -24,7 +24,9 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function Page({ params }: Props) {
-  const post = await loadNews((await params).slug);
+  const { slug } = await params;
+  const post = await loadNews(slug);
+  if (post.slug !== slug) permanentRedirect(`/news/${encodeURIComponent(post.slug)}`);
   return (
     <SiteShell>
       <article className="container-x grid max-w-3xl gap-5 py-12">

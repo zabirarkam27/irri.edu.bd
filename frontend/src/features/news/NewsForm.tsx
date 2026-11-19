@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormTextarea } from "@/components/forms/FormTextarea";
 import { removeNews, saveNews, type NewsFormState } from "./actions";
-import { newsStatuses, type NewsPost } from "./data";
+import type { NewsPost } from "./data";
 
 export function NewsForm({ post }: { post?: NewsPost }) {
   const [state, submit, pending] = useActionState(saveNews.bind(null, post?.id ?? null), {} as NewsFormState);
@@ -20,12 +20,6 @@ export function NewsForm({ post }: { post?: NewsPost }) {
       <FormTextarea label="Bengali content" name="contentBn" maxLength={100000} defaultValue={value("contentBn")} />
       <FormInput label="SEO title" name="seoTitle" maxLength={250} defaultValue={value("seoTitle")} />
       <FormTextarea label="Meta description" name="metaDescription" maxLength={500} defaultValue={value("metaDescription")} />
-      <label className="grid gap-2 text-sm font-medium">
-        Status
-        <select name="status" defaultValue={value("status") || "DRAFT"} className="h-10 rounded-md border bg-background px-3">
-          {newsStatuses.map((status) => <option key={status}>{status}</option>)}
-        </select>
-      </label>
       {state.error && <p role="alert" className="text-sm text-destructive">{state.error}</p>}
       <Button disabled={pending} className="w-fit">{pending ? "Saving..." : "Save news"}</Button>
     </form>

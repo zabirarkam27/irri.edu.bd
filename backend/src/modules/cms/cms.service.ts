@@ -96,6 +96,8 @@ function buildWhere(model: ModelName, query: Record<string, unknown>) {
   if (query.status && statusModels.has(model)) where.status = query.status;
   if (model === "person" && query.type) where.type = query.type;
   if (model === "auditLog" && query.entity) where.entity = query.entity;
+  if ((model === "course" || model === "program") && query.departmentId) where.departmentId = query.departmentId;
+  if (model === "course" && query.programId) where.programId = query.programId;
   if (query.search) {
     where.OR = (searchableFields[model] ?? ["title"]).map((field) => ({
       [field]: { contains: String(query.search), mode: "insensitive" }
@@ -120,10 +122,14 @@ export async function list(model: ModelName, query: Record<string, unknown>) {
 export async function findByIdOrSlug(model: ModelName, idOrSlug: string, publishedOnly = false) {
   const db = delegate(model);
   const where = slugModels.has(model) ? { OR: [{ id: idOrSlug }, { slug: idOrSlug }] } : { id: idOrSlug };
-  return db.findFirst({
+  const include = model === "galleryAlbum" ? { images: { orderBy: [{ order: "asc" }, { id: "asc" }] } } : undefined;
+  const direct = await db.findFirst({
     where: { ...where, ...(publishedOnly ? { status: "PUBLISHED" } : {}) },
-    ...(model === "galleryAlbum" ? { include: { images: { orderBy: { order: "asc" } } } } : {})
+    include
   });
+  if (direct || !publishedOnly || !slugModels.has(model)) return direct;
+  const redirect = await prisma.cmsSlugRedirect.findUnique({ where: { model_oldSlug: { model, oldSlug: idOrSlug } } });
+  return redirect ? db.findFirst({ where: { id: redirect.recordId, status: "PUBLISHED" }, include }) : null;
 }
 
 export async function create(model: ModelName, input: Record<string, unknown>, db: Prisma.TransactionClient = prisma) {
@@ -131,6 +137,9 @@ export async function create(model: ModelName, input: Record<string, unknown>, d
   const title = String(input.title ?? input.name ?? input.filename ?? "content");
   const slug = slugModels.has(model) ? input.slug ?? createSlug(title) : undefined;
   if (slugModels.has(model) && !slug) throw new AppError(400, "Provide a slug for this title");
+  if (typeof slug === "string" && await db.cmsSlugRedirect.findUnique({ where: { model_oldSlug: { model, oldSlug: slug } } })) {
+    throw new AppError(409, "This slug redirects to an existing record");
+  }
   const data = {
     ...input,
     ...(slug !== undefined ? { slug } : {})
@@ -140,6 +149,12 @@ export async function create(model: ModelName, input: Record<string, unknown>, d
 
 export async function update(model: ModelName, id: string, input: Record<string, unknown>, db: Prisma.TransactionClient = prisma) {
   validateWriteFields(model, input);
+  if (typeof input.slug === "string") {
+    const where = { model, oldSlug: input.slug };
+    const redirect = await db.cmsSlugRedirect.findUnique({ where: { model_oldSlug: where } });
+    if (redirect && redirect.recordId !== id) throw new AppError(409, "This slug redirects to an existing record");
+    if (redirect) await db.cmsSlugRedirect.delete({ where: { model_oldSlug: where } });
+  }
   return delegate(model, db).update({ where: { id }, data: input });
 }
 

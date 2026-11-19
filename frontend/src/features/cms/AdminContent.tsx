@@ -8,6 +8,11 @@ import { NewsRequestError } from "@/features/news/data";
 import { saveContent } from "./actions";
 import { CmsForm, DeleteContentForm } from "./Forms";
 import { formValue, resources, type CmsRecord, type SearchParams } from "./config";
+import { EditorialControls } from "./EditorialControls";
+import { GalleryImageForm } from "@/features/media/MediaControls";
+import { publicAsset } from "@/features/public/DetailPage";
+
+type EditorialState = { enabled: boolean; schedule: { scheduledAt: string } | null };
 
 export function listQuery(params: SearchParams, fields: string[]) {
   const query = new URLSearchParams();
@@ -51,7 +56,7 @@ export async function AdminContentList({ resource, searchParams }: { resource: s
       <label className="grid gap-1 text-sm">Search<input name="search" defaultValue={query.get("search") ?? ""} maxLength={200} className="h-10 rounded border bg-background px-3" /></label>
       {config.fields.some(({ name }) => name === "status") && <label className="grid gap-1 text-sm">Status
         <select name="status" defaultValue={query.get("status") ?? ""} className="h-10 rounded border bg-background px-3">
-          <option value="">All statuses</option><option>DRAFT</option><option>PUBLISHED</option><option>ARCHIVED</option>
+          <option value="">All statuses</option><option>DRAFT</option><option>IN_REVIEW</option><option>APPROVED</option><option>PUBLISHED</option><option>ARCHIVED</option>
         </select>
       </label>}
       <label className="grid gap-1 text-sm">Sort by<select name="sortBy" defaultValue={query.get("sortBy") ?? "createdAt"} className="h-10 rounded border bg-background px-3">
@@ -87,26 +92,46 @@ export async function AdminContentEditor({ resource, id }: { resource: string; i
     }))
   ]);
   if (record === null || choices.some((choice) => choice === null)) return <LoadFailure />;
+  if (id && record?.data.status && record.data.status !== "DRAFT") redirect(`/admin/${resource}${resource === "gallery" ? "/albums" : ""}/${id}`);
   const options = Object.fromEntries(choices.filter((choice) => choice !== null));
   return <div className="grid gap-5">
     <AdminPageHeader title={id ? "Edit record" : "New record"} description={config.label} />
-    <CmsForm fields={config.fields} options={options} record={record?.data} action={saveContent.bind(null, resource, id ?? null)} />
+    <CmsForm fields={config.fields.filter((field) => field.name !== "status")} options={options} record={record?.data} action={saveContent.bind(null, resource, id ?? null)} />
   </div>;
 }
 
 export async function AdminContentDetail({ resource, id }: { resource: string; id: string }) {
   const config = resources[resource];
-  const [result, account] = await Promise.all([
-    readAdmin<CmsRecord>(`/admin/${config.api}/${encodeURIComponent(id)}`), currentAdmin().catch(() => null)
+  const [result, account, editorial] = await Promise.all([
+    readAdmin<CmsRecord>(`/admin/${config.api}/${encodeURIComponent(id)}`), currentAdmin().catch(() => null),
+    resource === "categories" ? null : readAdmin<EditorialState>(`/admin/${config.api}/${encodeURIComponent(id)}/editorial`)
   ]);
   if (!result) return <LoadFailure />;
   const record = result.data;
+  const draft = !record.status || record.status === "DRAFT";
+  const galleryImages = Array.isArray(record.images) ? record.images as { id: string; url: string; altText: string; caption?: string }[] : [];
+  const canManageImages = draft && account && account.role !== "MODERATOR";
   return <div className="grid max-w-3xl gap-5">
     <AdminPageHeader title={recordLabel(record)} description={formValue(record.status)} />
-    <Link className="w-fit underline" href={`/admin/${resource}/${resource === "gallery" ? "albums/" : ""}${id}/edit`}>Edit</Link>
+    {draft && <Link className="w-fit underline" href={`/admin/${resource}/${resource === "gallery" ? "albums/" : ""}${id}/edit`}>Edit</Link>}
+    {editorial && account && <EditorialControls resource={resource} id={id} status={formValue(record.status)} role={account.role}
+      scheduling={editorial.data.enabled} scheduledAt={editorial.data.schedule?.scheduledAt} />}
     <dl className="grid gap-4">{config.fields.map(({ name, label }) => formValue(record[name]) && (
       <div key={name}><dt className="text-sm font-medium">{label}</dt><dd className="whitespace-pre-wrap break-words text-muted-foreground">{formValue(record[name])}</dd></div>
     ))}</dl>
-    {account && ["ADMIN", "SUPER_ADMIN"].includes(account.role) && <DeleteContentForm resource={resource} id={id} />}
+    {resource === "gallery" && <section className="grid gap-4">
+      <h2 className="font-semibold">Album images</h2>
+      {galleryImages.map((image) => {
+        const assetId = image.url.match(/^\/api\/v1\/media\/files\/([a-z0-9-]+)$/i)?.[1];
+        const src = assetId ? `/api/admin/media/${assetId}?thumb=1` : publicAsset(image.url);
+        return <div key={image.id} className="grid gap-2 border-b pb-3">
+          {src && <img src={src} alt={image.altText} width={160} height={100} className="h-24 w-40 rounded object-cover" />}
+          <p className="text-sm">{image.caption || image.altText}</p>
+          {canManageImages && <GalleryImageForm albumId={id} imageId={image.id} />}
+        </div>;
+      })}
+      {canManageImages && <GalleryImageForm albumId={id} />}
+    </section>}
+    {account && ["ADMIN", "SUPER_ADMIN"].includes(account.role) && (draft || record.status === "ARCHIVED") && <DeleteContentForm resource={resource} id={id} />}
   </div>;
 }

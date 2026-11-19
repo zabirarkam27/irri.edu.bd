@@ -1,5 +1,5 @@
-import { AdminDirectory } from "@/features/cms/AdminOperations";
+import { MediaLibrary } from "@/features/media/MediaLibrary";
 import type { SearchParams } from "@/features/cms/config";
 export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  return <AdminDirectory kind="media" searchParams={searchParams} />;
+  return <MediaLibrary searchParams={searchParams} />;
 }

@@ -48,7 +48,7 @@ export function modelWriteSchemas(model: ModelName) {
     } else if (field.type === "String") {
       schema = urlFields.has(key)
         ? z.string().trim().max(2048).refine((value) => {
-          if (/^\/uploads\/[a-z0-9][a-z0-9._-]*$/i.test(value)) return true;
+          if (/^\/uploads\/[a-z0-9][a-z0-9._-]*$/i.test(value) || /^\/api\/v1\/media\/files\/[a-z0-9-]{1,80}$/i.test(value)) return true;
           try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; }
         }, "Use an HTTP(S) URL or an existing upload path")
         : key === "slug"
@@ -82,8 +82,10 @@ export const listQuerySchema = z.object({
     search: z.string().max(200).optional(),
     sortBy: z.string().max(80).optional(),
     sortOrder: z.enum(["asc", "desc"]).optional(),
-    status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+    status: z.enum(["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"]).optional(),
     type: z.enum(["ADMINISTRATION", "FACULTY", "STAFF", "RESEARCHER"]).optional(),
-    entity: z.string().trim().max(80).optional()
+    entity: z.string().trim().max(80).optional(),
+    departmentId: z.string().trim().min(1).max(80).optional(),
+    programId: z.string().trim().min(1).max(80).optional()
   })
 });
