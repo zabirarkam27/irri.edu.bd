@@ -2,15 +2,23 @@ import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { events, news, notices } from "@/features/home/data";
+import { events, notices } from "@/features/home/data";
+import { newsRequest, type NewsPost } from "@/features/news/data";
 
-export function ContentPreviews() {
+export async function ContentPreviews() {
+  const result = await newsRequest<NewsPost[]>("/news?limit=4&sortBy=createdAt&sortOrder=desc").catch(() => null);
+  const news = result?.data.map((post) => ({
+    title: post.title,
+    slug: post.slug,
+    date: (post.publishedAt || post.createdAt).slice(0, 10)
+  }));
   return (
     <>
       <section className="bg-background">
         <div className="container-x grid gap-8 py-16 md:py-20 lg:grid-cols-3 lg:py-24">
           <div className="lg:col-span-2">
-            <Preview title="Latest News" href="/news" items={news} eyebrow="News" />
+            <Preview title="Latest News" href="/news" items={news ?? []} eyebrow="News" />
+            {!news?.length && <p className="mt-4 text-sm text-muted-foreground">{news ? "No published news." : "News is temporarily unavailable."}</p>}
           </div>
           <Preview title="Latest Notices" href="/notices" items={notices} eyebrow="Notices" compact />
         </div>
@@ -47,7 +55,7 @@ export function ContentPreviews() {
   );
 }
 
-function Preview({ title, href, items, eyebrow, compact }: { title: string; href: string; items: typeof news; eyebrow: string; compact?: boolean }) {
+function Preview({ title, href, items, eyebrow, compact }: { title: string; href: string; items: { title: string; slug: string; date: string }[]; eyebrow: string; compact?: boolean }) {
   return (
     <div>
       <SectionHeader eyebrow={eyebrow} title={title} href={href} />
@@ -58,7 +66,7 @@ function Preview({ title, href, items, eyebrow, compact }: { title: string; href
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 <CalendarDays className="h-4 w-4" strokeWidth={2} /> {item.date}
               </p>
-              <Link href={`${href}/${item.slug}`} className="mt-3 block font-semibold leading-snug text-foreground hover:text-primary-pressed">
+              <Link href={`${href}/${encodeURIComponent(item.slug)}`} className="mt-3 block font-semibold leading-snug text-foreground hover:text-primary-pressed">
                 {item.title}
               </Link>
             </CardContent>

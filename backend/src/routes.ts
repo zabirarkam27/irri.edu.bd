@@ -14,6 +14,7 @@ router.use("/departments", cmsRouter("department"));
 router.use("/programs", cmsRouter("program"));
 router.use("/courses", cmsRouter("course"));
 router.use("/news", cmsRouter("newsPost"));
+router.use("/admin/news", cmsRouter("newsPost", true));
 router.use("/notices", cmsRouter("notice"));
 router.use("/events", cmsRouter("event"));
 router.use("/gallery-albums", cmsRouter("galleryAlbum"));

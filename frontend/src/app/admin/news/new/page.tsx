@@ -1,2 +1,5 @@
-import { AdminFormPage } from "@/features/admin/components/AdminFormPage";
-export default function Page() { return <AdminFormPage title="New News Post" />; }
+import { AdminPageHeader } from "@/features/admin/components/AdminPageHeader";
+import { NewsForm } from "@/features/news/NewsForm";
+export default function Page() {
+  return <div className="grid gap-5"><AdminPageHeader title="New news post" description="Draft or publish a news post." /><NewsForm /></div>;
+}

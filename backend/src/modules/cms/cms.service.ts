@@ -117,18 +117,20 @@ export async function list(model: ModelName, query: Record<string, unknown>) {
   return { data, meta: { page, limit, total, totalPage: Math.ceil(total / limit) } };
 }
 
-export async function findByIdOrSlug(model: ModelName, idOrSlug: string) {
+export async function findByIdOrSlug(model: ModelName, idOrSlug: string, publishedOnly = false) {
   const db = delegate(model);
   const where = slugModels.has(model) ? { OR: [{ id: idOrSlug }, { slug: idOrSlug }] } : { id: idOrSlug };
-  return db.findFirst({ where });
+  return db.findFirst({ where: { ...where, ...(publishedOnly ? { status: "PUBLISHED" } : {}) } });
 }
 
 export async function create(model: ModelName, input: Record<string, unknown>) {
   validateWriteFields(model, input);
   const title = String(input.title ?? input.name ?? input.filename ?? "content");
+  const slug = slugModels.has(model) ? input.slug ?? createSlug(title) : undefined;
+  if (model === "newsPost" && !slug) throw new AppError(400, "Provide a slug for this title");
   const data = {
     ...input,
-    ...(slugModels.has(model) ? { slug: input.slug ?? createSlug(title) } : {})
+    ...(slug !== undefined ? { slug } : {})
   };
   return delegate(model).create({ data });
 }
