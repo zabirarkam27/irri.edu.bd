@@ -10,6 +10,7 @@ export type NewsPost = {
   content: string;
   contentBn: string | null;
   excerpt: string | null;
+  departmentId?: string | null;
   seoTitle: string | null;
   metaDescription: string | null;
   status: NewsStatus;

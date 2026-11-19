@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const groups = [
   { title: "Overview", icon: LayoutDashboard, items: ["dashboard", "profile", "institution"] },
-  { title: "Content", icon: BookOpen, items: ["pages", "administration", "departments", "programs", "courses", "news", "notices", "events", "gallery", "categories", "publications", "media"] },
+  { title: "Content", icon: BookOpen, items: ["pages", "administration", "departments", "programs", "courses", "news", "notices", "events", "gallery", "categories", "publications", "research-areas", "research-projects", "academic-assets", "media"] },
   { title: "Communication", icon: Inbox, items: ["contact-messages"] },
   { title: "System", icon: Shield, items: ["audit-logs", "users", "settings"] }
 ];

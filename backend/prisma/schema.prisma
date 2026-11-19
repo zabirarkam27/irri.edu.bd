@@ -68,6 +68,16 @@ model InstitutionProfile {
   updatedAt      DateTime @updatedAt
 }
 
+model ReleaseSettings {
+  id String @id
+  releaseOwner String?
+  rollbackOwner String?
+  alertDestination String?
+  releaseStartsAt DateTime?
+  releaseEndsAt DateTime?
+  updatedAt DateTime @updatedAt
+}
+
 model Page {
   id              String   @id @default(cuid())
   title           String
@@ -88,6 +98,16 @@ model Page {
 }
 
 model Person {
+  departmentId String?
+  department Department? @relation("AcademicPeople", fields: [departmentId], references: [id])
+  education String?
+  interests String?
+  officialEmail String?
+  headedUnits Department[] @relation("DepartmentHead")
+  taughtCourses Course[] @relation("CourseInstructor")
+  ledProjects ResearchProject[] @relation("ProjectLead")
+  projects ResearchProject[] @relation("ProjectTeam")
+  publications Publication[] @relation("PublicationContributors")
   id          String     @id @default(cuid())
   name        String
   nameBn      String?
@@ -105,6 +125,18 @@ model Person {
 }
 
 model Department {
+  unitType String?
+  objectives String?
+  location String?
+  photoUrl String?
+  officialEmail String?
+  headId String?
+  head Person? @relation("DepartmentHead", fields: [headId], references: [id])
+  people Person[] @relation("AcademicPeople")
+  researchAreas ResearchArea[]
+  researchProjects ResearchProject[]
+  publications Publication[]
+  news NewsPost[]
   id          String    @id @default(cuid())
   name        String
   nameBn      String?
@@ -118,6 +150,15 @@ model Department {
 }
 
 model Program {
+  code String?
+  programType String?
+  deliveryMode String?
+  objectives String?
+  eligibility String?
+  admissions String?
+  applicationStatus String?
+  officialEmail String?
+  fileUrl String?
   id           String      @id @default(cuid())
   title        String
   titleBn      String?
@@ -136,6 +177,12 @@ model Program {
 }
 
 model Course {
+  outcomes String?
+  fileUrl String?
+  instructorId String?
+  instructor Person? @relation("CourseInstructor", fields: [instructorId], references: [id])
+  prerequisites Course[] @relation("CoursePrerequisites")
+  requiredBy Course[] @relation("CoursePrerequisites")
   id           String      @id @default(cuid())
   title        String
   titleBn      String?
@@ -153,6 +200,8 @@ model Course {
 }
 
 model NewsPost {
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
   id              String   @id @default(cuid())
   title           String
   titleBn         String?
@@ -188,6 +237,7 @@ model Notice {
 }
 
 model Event {
+  academicCalendar Boolean @default(false)
   id              String   @id @default(cuid())
   title           String
   titleBn         String?
@@ -230,6 +280,23 @@ model GalleryImage {
 }
 
 model Publication {
+  publicationType String?
+  editors String?
+  authors String?
+  keywords String?
+  isbn String?
+  issn String?
+  doi String?
+  publisher String?
+  journal String?
+  externalUrl String?
+  photoUrl String?
+  citation String?
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
+  projectId String?
+  project ResearchProject? @relation(fields: [projectId], references: [id])
+  contributors Person[] @relation("PublicationContributors")
   id              String   @id @default(cuid())
   title           String
   titleBn         String?
@@ -245,7 +312,92 @@ model Publication {
   updatedAt       DateTime @updatedAt
 }
 
+model ResearchArea {
+  id String @id @default(cuid())
+  title String
+  titleBn String?
+  slug String @unique
+  description String?
+  contentBn String?
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
+  projects ResearchProject[]
+  status Status @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([departmentId, status])
+}
+
+model ResearchProject {
+  id String @id @default(cuid())
+  title String
+  titleBn String?
+  slug String @unique
+  description String?
+  contentBn String?
+  projectStatus String?
+  startsAt DateTime?
+  endsAt DateTime?
+  publicFunding String?
+  outputs String?
+  areaId String?
+  area ResearchArea? @relation(fields: [areaId], references: [id])
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
+  leadId String?
+  lead Person? @relation("ProjectLead", fields: [leadId], references: [id])
+  team Person[] @relation("ProjectTeam")
+  publications Publication[]
+  status Status @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([areaId, status])
+  @@index([departmentId, status])
+  @@index([leadId])
+}
+
+enum AcademicAssetKind {
+  REPOSITORY
+  RESOURCE
+}
+
+enum AcademicAccess {
+  PRIVATE
+  PUBLIC
+}
+
+model AcademicAsset {
+  id String @id @default(cuid())
+  title String
+  titleBn String?
+  slug String @unique
+  description String?
+  contentBn String?
+  kind AcademicAssetKind
+  access AcademicAccess @default(PRIVATE)
+  rightsStatement String?
+  rightsEvidence String?
+  rightsVerified Boolean @default(false)
+  rightsApprovedBy String?
+  rightsApprovedAt DateTime?
+  language String?
+  version String?
+  fileUrl String @unique
+  expiresAt DateTime?
+  categoryId String?
+  category Category? @relation(fields: [categoryId], references: [id])
+  replacementId String?
+  replacement AcademicAsset? @relation("AssetReplacement", fields: [replacementId], references: [id])
+  supersedes AcademicAsset[] @relation("AssetReplacement")
+  status Status @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([kind, status, access, expiresAt])
+  @@index([categoryId])
+}
+
 model Category {
+  academicAssets AcademicAsset[]
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique

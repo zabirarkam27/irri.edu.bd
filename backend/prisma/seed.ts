@@ -65,7 +65,7 @@ async function main() {
         title,
         slug: createSlug(title),
         content: `${title} content for International Rabindra Research Institute.`,
-        status: Status.PUBLISHED,
+        status: Status.DRAFT,
         seoTitle: `${title} | International Rabindra Research Institute`,
         metaDescription: `${title} page for International Rabindra Research Institute.`
       }

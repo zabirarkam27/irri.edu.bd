@@ -144,6 +144,9 @@ mediaAdminRouter.put("/:id/file", requireAuth, editMedia, validateRequest(writeP
   try {
     data = await prisma.$transaction(async (db) => {
       const previous = await db.mediaAsset.findUniqueOrThrow({ where: { id } });
+      if (await db.academicAsset.findUnique({ where: { fileUrl: previous.url }, select: { id: true } })) {
+        throw new AppError(409, "Upload a new file and create a replacement catalogue record");
+      }
       if ((!previous.storageKey || previous.type !== stored.type) && await mediaIsReferenced(db, previous.url)) {
         throw new AppError(409, "Replace this linked file with the same media type, or unlink the legacy file first");
       }
@@ -188,7 +191,13 @@ function serveFile(admin: boolean) {
       "X-Content-Type-Options": "nosniff",
       "Cross-Origin-Resource-Policy": admin ? "same-origin" : "cross-origin"
     });
-    if (asset.type !== "IMAGE") res.attachment("document.pdf");
+    if (asset.type !== "IMAGE") {
+      if (req.query.preview === "1" && asset.mimeType === "application/pdf") {
+        res.set("Content-Disposition", 'inline; filename="document.pdf"');
+      } else {
+        res.attachment("document.pdf");
+      }
+    }
     try {
       await pipeline(body, res);
     } catch {

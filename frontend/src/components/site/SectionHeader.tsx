@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { localePath, tr } from "@/lib/locale";
+import { requestLocale } from "@/lib/request-locale";
 
-export function SectionHeader({
+export async function SectionHeader({
   eyebrow,
   title,
   description,
@@ -12,16 +14,17 @@ export function SectionHeader({
   description?: string;
   href?: string;
 }) {
+  const { locale } = await requestLocale();
   return (
     <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div className="max-w-3xl">
-        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{eyebrow}</p> : null}
-        <h2 className="mt-3 font-display text-3xl font-semibold tracking-[-0.02em] text-balance text-foreground md:text-4xl">{title}</h2>
+        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{tr(locale, eyebrow)}</p> : null}
+        <h2 className="mt-3 font-display text-3xl font-semibold text-balance text-foreground md:text-4xl">{tr(locale, title)}</h2>
         {description ? <p className="mt-4 text-base leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
       {href ? (
-        <Link href={href} className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-pressed">
-          View all <ArrowRight className="h-4 w-4" />
+          <Link href={localePath(locale, href)} className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-pressed">
+          {tr(locale, "View all")} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       ) : null}
     </div>

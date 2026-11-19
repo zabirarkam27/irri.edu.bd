@@ -1,11 +1,11 @@
 import { Footer } from "@/components/site/Footer";
-import { Navbar } from "@/components/site/Navbar";
+import { SiteHeader } from "@/components/shared/SiteHeader";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Navbar />
-      <main>{children}</main>
+      <SiteHeader />
+      <main id="main-content" tabIndex={-1}>{children}</main>
       <Footer />
     </>
   );

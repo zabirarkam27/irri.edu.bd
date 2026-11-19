@@ -1,0 +1,51 @@
+name: Quality checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: irri_phase1
+          POSTGRES_USER: irri_test
+          POSTGRES_PASSWORD: disposable-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U irri_test -d irri_phase1"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://irri_test:disposable-test-password@127.0.0.1:5432/irri_phase1
+      SEED_ADMIN_EMAIL: qa@example.test
+      SEED_ADMIN_PASSWORD: Local-integration-only-2026
+      JWT_SECRET: disposable-ci-signing-secret-not-for-production
+      NEXTAUTH_SECRET: disposable-ci-session-secret-not-for-production
+      CRON_SECRET: disposable-ci-cron-secret-not-for-production
+      NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:5000/api/v1
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3301
+      FRONTEND_URL: http://127.0.0.1:3301
+      PHASE1_VERIFY_FRONTEND: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run prisma:deploy --workspace=backend
+      - run: npm run seed --workspace=backend
+      - run: npm run build
+      - run: npm run test:unit
+      - run: npm run test:integration
+        env:
+          NODE_ENV: test

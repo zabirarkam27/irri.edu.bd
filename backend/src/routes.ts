@@ -8,14 +8,20 @@ import { adminOperations } from "@/modules/cms/admin.operations";
 import { prisma } from "@/lib/prisma";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendResponse } from "@/utils/sendResponse";
+import { publicSearch, publicSitemap, validatePublicSearch } from "@/modules/cms/public-search";
+import { downloadAcademicCalendar } from "@/modules/cms/academic-calendar";
 
 export const router = Router();
 
 router.use("/auth", authRouter);
+router.get("/search", validatePublicSearch, publicSearch);
+router.get("/sitemap", publicSitemap);
+router.get("/academic-calendar.ics", downloadAcademicCalendar);
 router.get("/institution", catchAsync(async (_req, res) => {
   const data = await prisma.institutionProfile.findFirst({
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { name: true, nameBn: true, location: true, motto: true, mission: true, vision: true, establishedAt: true, operationStart: true }
+    select: { name: true, nameBn: true, location: true, motto: true, mottoBn: true, mission: true, missionBn: true,
+      vision: true, visionBn: true, establishedAt: true, operationStart: true }
   });
   sendResponse(res, 200, { success: true, message: "Institution loaded", data });
 }));
@@ -31,6 +37,12 @@ router.use("/notices", cmsRouter("notice"));
 router.use("/events", cmsRouter("event"));
 router.use("/gallery-albums", cmsRouter("galleryAlbum"));
 router.use("/publications", cmsRouter("publication"));
+router.use("/research-areas", cmsRouter("researchArea"));
+router.use("/research-projects", cmsRouter("researchProject"));
+router.use("/academic-assets", cmsRouter("academicAsset"));
+router.use("/admin/research-areas", cmsRouter("researchArea", true));
+router.use("/admin/research-projects", cmsRouter("researchProject", true));
+router.use("/admin/academic-assets", cmsRouter("academicAsset", true));
 router.use("/categories", cmsRouter("category"));
 router.use("/media", mediaRouter);
 router.get("/editorial/run", editorialRunner);

@@ -25,6 +25,23 @@ export function CmsForm({ fields, record, options, action }: {
         const raw = state.values?.[field.name] ?? existing;
         const value = field.kind === "date" ? raw.slice(0, 19) : raw;
         const props = { name: field.name, required: field.required, defaultValue: value };
+        if (field.kind === "multi") {
+          const selected = state.values?.[field.name] ? JSON.parse(state.values[field.name]) as string[] :
+            Array.isArray(record?.[field.name]) ? record[field.name] as string[] : [];
+          const choices = options?.[field.name] ?? [];
+          return <fieldset key={field.name} className="grid max-h-52 gap-2 overflow-auto rounded border p-3">
+            <legend className="px-2 text-sm font-medium">{field.label}</legend>
+            {choices.length ? choices.map(({ id, label }) => <label key={id} className="flex items-start gap-2 break-words text-sm">
+              <input type="checkbox" name={field.name} value={id} defaultChecked={selected.includes(id)} className="mt-1" />{label}
+            </label>) : <p className="text-sm text-muted-foreground">No records available.</p>}
+          </fieldset>;
+        }
+        if (field.kind === "boolean") return <label key={field.name} className="grid gap-2 text-sm font-medium">{field.label}
+          <select name={field.name} defaultValue={field.name === "rightsVerified" ? state.values?.[field.name] ?? "" : value || "false"} className="h-10 rounded-md border bg-background px-3">
+            {field.name === "rightsVerified" && <option value="">Keep current verification</option>}
+            <option value="true">Yes</option><option value="false">No</option>
+          </select>
+        </label>;
         if (["photoUrl", "ogImage", "fileUrl"].includes(field.name)) {
           return <MediaPicker key={field.name} kind={field.name === "fileUrl" ? "DOCUMENT" : "IMAGE"} name={field.name} initial={value} label={field.label} />;
         }

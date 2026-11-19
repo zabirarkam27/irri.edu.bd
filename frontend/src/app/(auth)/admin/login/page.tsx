@@ -1,6 +1,6 @@
 import { GraduationCap } from "lucide-react";
 import { LoginForm } from "@/features/auth/components/LoginForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
 export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string }> }) {
   const { callbackUrl } = await searchParams;
@@ -14,17 +14,11 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
           </span>
           <div>
             <p className="font-display text-xl font-semibold tracking-[-0.02em]">IRRI Admin</p>
-            <p className="text-sm text-primary-foreground/70">Academic CMS control room</p>
+            <p className="text-sm">Academic CMS</p>
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary-foreground/65">International Rabindra Research Institute</p>
-          <h1 className="mt-4 max-w-xl font-display text-5xl font-semibold leading-[1.05] tracking-[-0.02em] text-balance">
-            Manage a calm, trustworthy academic publishing system.
-          </h1>
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-primary-foreground/80">
-            Publish institute pages, notices, research updates, events, gallery records, and administration content from one secure dashboard.
-          </p>
+          <p className="max-w-lg font-display text-3xl font-semibold text-balance">International Rabindra Research Institute</p>
         </div>
       </section>
       <section className="flex items-center justify-center px-5 py-12">
@@ -33,7 +27,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-brand text-primary-foreground shadow-soft">
               <GraduationCap className="h-6 w-6" strokeWidth={2} />
             </div>
-            <CardTitle className="font-display text-2xl font-semibold tracking-[-0.02em]">Admin Login</CardTitle>
+            <h1 className="font-display text-2xl font-semibold">Admin Login</h1>
             <CardDescription>Manage IRRI website content and institute records.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -44,3 +38,4 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
     </main>
   );
 }
+export const metadata = { title: "Admin sign in", robots: { index: false, follow: false } };

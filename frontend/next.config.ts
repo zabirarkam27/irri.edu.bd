@@ -2,13 +2,7 @@ import type { NextConfig } from "next";
 import { z } from "zod";
 
 const nextConfig: NextConfig = {
-  experimental: { serverActions: { bodySizeLimit: "4350kb" } },
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "**" },
-      { protocol: "http", hostname: "localhost" }
-    ]
-  }
+  experimental: { serverActions: { bodySizeLimit: "4350kb" } }
 };
 
 export default function config() {

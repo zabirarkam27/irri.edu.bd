@@ -117,6 +117,37 @@ adminOperations.get("/institution", requireAuth, administrators, catchAsync(asyn
   sendResponse(res, 200, { success: true, message: "Institution loaded", data });
 }));
 
+const releaseSettings = z.strictObject({
+  releaseOwner: z.string().trim().min(1).max(150).nullable(),
+  rollbackOwner: z.string().trim().min(1).max(150).nullable(),
+  alertDestination: z.string().trim().min(1).max(200).nullable(),
+  releaseStartsAt: z.iso.datetime({ offset: true }).nullable(),
+  releaseEndsAt: z.iso.datetime({ offset: true }).nullable()
+}).refine(({ releaseStartsAt, releaseEndsAt }) => (releaseStartsAt === null && releaseEndsAt === null) ||
+  (releaseStartsAt !== null && releaseEndsAt !== null && Date.parse(releaseStartsAt) < Date.parse(releaseEndsAt)),
+  "Provide both dates with the release end after its start");
+
+adminOperations.get("/release-settings", requireAuth, administrators, catchAsync(async (_req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const data = await prisma.releaseSettings.findUnique({ where: { id: "production" } });
+  sendResponse(res, 200, { success: true, message: "Release settings loaded", data });
+}));
+
+adminOperations.put("/release-settings", requireAuth, administrators,
+  validateRequest(z.object({ body: releaseSettings })), catchAsync(async (req, res) => {
+    res.set("Cache-Control", "private, no-store");
+    const body = releaseSettings.parse(req.body);
+    const data = await prisma.$transaction(async (db) => {
+      const where = { id: "production" };
+      const previous = await db.releaseSettings.findUnique({ where });
+      const record = await db.releaseSettings.upsert({ where, create: { ...where, ...body }, update: body });
+      const changed = Object.keys(body).filter((key) => JSON.stringify(previous?.[key as keyof typeof body]) !== JSON.stringify(record[key as keyof typeof body]));
+      await writeAudit(req, "SAVE_RELEASE_SETTINGS", "releaseSettings", record.id, undefined, { changed }, db);
+      return record;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    sendResponse(res, 200, { success: true, message: "Release settings saved", data });
+  }));
+
 adminOperations.put("/institution", requireAuth, administrators, validateRequest(z.object({ body: institutionFields })),
   catchAsync(async (req, res) => {
     const data = await prisma.$transaction(async (db) => {

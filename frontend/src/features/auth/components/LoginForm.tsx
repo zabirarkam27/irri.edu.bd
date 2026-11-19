@@ -36,10 +36,10 @@ export function LoginForm({ callbackUrl = "/admin/dashboard" }: { callbackUrl?: 
 
   return (
     <form action={submit} className="grid gap-5">
-      <FormInput label="Email" name="email" type="email" defaultValue="admin@irri.edu.com" required />
-      <FormInput label="Password" name="password" type="password" required />
+      <FormInput label="Email" name="email" type="email" autoComplete="username" required />
+      <FormInput label="Password" name="password" type="password" autoComplete="current-password" required />
       <Button type="submit">Sign in</Button>
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     </form>
   );
 }

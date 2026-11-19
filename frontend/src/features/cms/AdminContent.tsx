@@ -79,7 +79,7 @@ export async function AdminContentList({ resource, searchParams }: { resource: s
 
 export async function AdminContentEditor({ resource, id }: { resource: string; id?: string }) {
   const config = resources[resource];
-  const [record, choices] = await Promise.all([
+  const [record, choices, account] = await Promise.all([
     id ? readAdmin<CmsRecord>(`/admin/${config.api}/${encodeURIComponent(id)}`) : undefined,
     Promise.all(config.fields.filter((field) => field.resource).map(async (field) => {
       const path = `/admin/${field.resource}`;
@@ -89,14 +89,17 @@ export async function AdminContentEditor({ resource, id }: { resource: string; i
         (_, i) => readAdmin<CmsRecord[]>(`${path}?page=${i + 2}&limit=100&sortOrder=asc`)));
       if (pages.some((page) => !page)) return null;
       return [field.name, [first, ...pages].flatMap((page) => page?.data ?? []).map((item) => ({ id: item.id, label: recordLabel(item) }))] as const;
-    }))
+    })),
+    currentAdmin().catch(() => null)
   ]);
   if (record === null || choices.some((choice) => choice === null)) return <LoadFailure />;
   if (id && record?.data.status && record.data.status !== "DRAFT") redirect(`/admin/${resource}${resource === "gallery" ? "/albums" : ""}/${id}`);
-  const options = Object.fromEntries(choices.filter((choice) => choice !== null));
+  const options = Object.fromEntries(choices.filter((choice) => choice !== null).map(([key, values]) => [key,
+    key === "replacementId" || key === "prerequisiteIds" ? values.filter((option) => option.id !== id) : values]));
   return <div className="grid gap-5">
     <AdminPageHeader title={id ? "Edit record" : "New record"} description={config.label} />
-    <CmsForm fields={config.fields.filter((field) => field.name !== "status")} options={options} record={record?.data} action={saveContent.bind(null, resource, id ?? null)} />
+    <CmsForm fields={config.fields.filter((field) => field.name !== "status" &&
+      (field.name !== "rightsVerified" || ["ADMIN", "SUPER_ADMIN"].includes(account?.role ?? "")))} options={options} record={record?.data} action={saveContent.bind(null, resource, id ?? null)} />
   </div>;
 }
 
@@ -132,6 +135,6 @@ export async function AdminContentDetail({ resource, id }: { resource: string; i
       })}
       {canManageImages && <GalleryImageForm albumId={id} />}
     </section>}
-    {account && ["ADMIN", "SUPER_ADMIN"].includes(account.role) && (draft || record.status === "ARCHIVED") && <DeleteContentForm resource={resource} id={id} />}
+    {resource !== "academic-assets" && account && ["ADMIN", "SUPER_ADMIN"].includes(account.role) && (draft || record.status === "ARCHIVED") && <DeleteContentForm resource={resource} id={id} />}
   </div>;
 }

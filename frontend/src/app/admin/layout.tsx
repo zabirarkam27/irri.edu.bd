@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { signOut } from "@/lib/auth";
 import { currentAdmin } from "@/features/news/admin";
 
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const account = await currentAdmin().catch(() => null);
   if (!account) redirect("/admin/login");

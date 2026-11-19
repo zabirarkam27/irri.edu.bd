@@ -23,7 +23,7 @@ backend/    REST API, Prisma schema, seed scripts
 
 ## Prerequisites
 
-- Node.js 20 or newer
+- Node.js 22 LTS or newer
 - npm
 - PostgreSQL database
 

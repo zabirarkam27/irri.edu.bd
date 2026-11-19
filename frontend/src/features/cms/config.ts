@@ -1,7 +1,7 @@
 export type Field = {
   name: string;
   label: string;
-  kind?: "text" | "area" | "date" | "number" | "url" | "enum" | "relation";
+  kind?: "text" | "area" | "date" | "number" | "url" | "enum" | "relation" | "multi" | "boolean";
   required?: boolean;
   options?: string[];
   resource?: string;
@@ -20,6 +20,12 @@ const seo = [field("seoTitle", "SEO title"), field("metaDescription", "Meta desc
 const publishedAt = field("publishedAt", "Publication date and time (UTC)", { kind: "date" });
 const department = field("departmentId", "Department", { kind: "relation", resource: "departments" });
 const program = field("programId", "Program", { kind: "relation", resource: "programs" });
+const area = (name: string, label: string) => field(name, label, { kind: "area" });
+const url = (name: string, label: string, required = false) => field(name, label, { kind: "url", required });
+const relation = (name: string, label: string, resource: string, multi = false) => field(name, label, { kind: multi ? "multi" : "relation", resource });
+const date = (name: string, label: string) => field(name, label, { kind: "date" });
+const officialEmail = field("officialEmail", "Official email");
+const objectives = area("objectives", "Objectives");
 
 export const resources: Record<string, { label: string; api: string; fields: Field[] }> = {
   pages: { label: "Pages", api: "pages", fields: [...title, slug, ...content, excerpt, ...seo, field("ogImage", "Social image URL", { kind: "url" }), status] },
@@ -34,6 +40,35 @@ export const resources: Record<string, { label: string; api: string; fields: Fie
   categories: { label: "Categories", api: "categories", fields: [name[0], slug, description] }
 };
 
+resources.events.fields.push(field("academicCalendar", "Include in academic calendar", { kind: "boolean" }));
+resources.departments.fields.push(field("unitType", "Unit type"), objectives, field("location", "Location"), officialEmail,
+  url("photoUrl", "Unit photo"), relation("headId", "Unit head", "people"));
+resources.administration.fields.push(department, area("education", "Education"), area("interests", "Research interests"), officialEmail);
+resources.programs.fields.push(field("code", "Program code"), field("programType", "Program type"), field("deliveryMode", "Delivery mode"),
+  objectives, area("eligibility", "Eligibility"), area("admissions", "Admissions"), field("applicationStatus", "Application status"),
+  officialEmail, url("fileUrl", "Program brochure"));
+resources.courses.fields.push(area("outcomes", "Learning outcomes"), url("fileUrl", "Syllabus"), relation("instructorId", "Instructor", "people"),
+  relation("prerequisiteIds", "Prerequisites", "courses", true));
+resources.publications.fields.push(field("publicationType", "Publication type"), area("authors", "Authors"), area("editors", "Editors"),
+  field("keywords", "Keywords"), field("isbn", "ISBN"), field("issn", "ISSN"), field("doi", "DOI"), field("publisher", "Publisher"),
+  field("journal", "Journal"), url("externalUrl", "External link"), url("photoUrl", "Cover image"), area("citation", "Citation"),
+  department, relation("projectId", "Research project", "research-projects"), relation("contributorIds", "Contributors", "people", true));
+
+const researchContent = [...title, slug, description, area("contentBn", "Bengali description"), department, status];
+resources["research-areas"] = { label: "Research areas", api: "research-areas", fields: researchContent };
+resources["research-projects"] = { label: "Research projects", api: "research-projects", fields: [...researchContent,
+  relation("areaId", "Research area", "research-areas"), relation("leadId", "Project lead", "people"),
+  relation("teamIds", "Project team", "people", true), field("projectStatus", "Project status"),
+  date("startsAt", "Starts (UTC)"), date("endsAt", "Ends (UTC)"), area("publicFunding", "Public funding information"), area("outputs", "Outputs")] };
+resources["academic-assets"] = { label: "Repository and resources", api: "academic-assets", fields: [...title, slug, description,
+  area("contentBn", "Bengali description"), field("kind", "Record type", { kind: "enum", options: ["REPOSITORY", "RESOURCE"], initial: "REPOSITORY" }),
+  field("access", "File access", { kind: "enum", options: ["PRIVATE", "PUBLIC"], initial: "PRIVATE" }),
+  field("language", "Language"), field("version", "Version"), url("fileUrl", "Managed document", true),
+  area("rightsStatement", "Public rights statement"), area("rightsEvidence", "Internal written evidence reference"),
+  field("rightsVerified", "Written rights verification", { kind: "boolean" }),
+  date("expiresAt", "Expires (UTC)"), relation("categoryId", "Category", "categories"),
+  relation("replacementId", "Replacement", "academic-assets"), status] };
+
 export const institutionFields = [
   ...name, field("acronym", "Acronym", { required: true }), field("location", "Location", { required: true }),
   field("domain", "Website URL", { kind: "url", required: true }),
@@ -43,8 +78,16 @@ export const institutionFields = [
   field("establishedAt", "Established year", { kind: "number" }), field("operationStart", "Operations start year", { kind: "number" })
 ];
 
+export const releaseSettingsFields = [
+  field("releaseOwner", "Release owner"),
+  field("rollbackOwner", "Rollback owner"),
+  field("alertDestination", "Monitoring alert destination"),
+  date("releaseStartsAt", "Window opens (Dhaka time)"),
+  date("releaseEndsAt", "Window closes (Dhaka time)")
+];
+
 export type CmsRecord = Record<string, unknown> & { id: string };
 export type SearchParams = Record<string, string | string[] | undefined>;
 export function formValue(value: unknown) {
-  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+  return ["string", "number", "boolean"].includes(typeof value) ? String(value) : "";
 }

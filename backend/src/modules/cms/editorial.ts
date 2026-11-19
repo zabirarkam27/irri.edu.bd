@@ -7,10 +7,11 @@ import { catchAsync } from "@/utils/catchAsync";
 import { writeAudit } from "@/utils/audit";
 import { sendResponse } from "@/utils/sendResponse";
 import { cleanMediaGarbage } from "@/modules/media/media.route";
+import { hasAcademicRights } from "@/modules/media/references";
 import { findById, update, type ModelName } from "./cms.service";
 import { writeParamsSchema } from "./cms.validation";
 
-const editorialModels = ["page", "person", "department", "program", "course", "newsPost", "notice", "event", "galleryAlbum", "publication"];
+const editorialModels = ["page", "person", "department", "program", "course", "newsPost", "notice", "event", "galleryAlbum", "publication", "researchArea", "researchProject", "academicAsset"];
 export function hasEditorialWorkflow(model: string): model is EditorialModel {
   return editorialModels.includes(model);
 }
@@ -75,10 +76,16 @@ export function runTransition(model: EditorialModel) {
       const record = await findById(model, recordId, db);
       if (!record) throw new AppError(404, "Record not found");
       const next = target(action, record.status, req.user!.role);
+      if (model === "academicAsset" && action === "publish" && !hasAcademicRights(record)) {
+        throw new AppError(409, "Verify written rights and check expiry before public release");
+      }
       if (action === "schedule") {
         if (!process.env.CRON_SECRET) throw new AppError(503, "Scheduled publishing is not configured");
         const when = scheduledAt ? new Date(scheduledAt) : null;
         if (!when || when <= new Date()) throw new AppError(400, "Choose a future publication date");
+        if (model === "academicAsset" && !hasAcademicRights(record, when)) {
+          throw new AppError(409, "Verify written rights and check expiry before scheduling public release");
+        }
         await db.publicationSchedule.upsert({ where: { model_recordId: where },
           create: { ...where, scheduledAt: when, scheduledBy: req.user!.id },
           update: { scheduledAt: when, scheduledBy: req.user!.id } });
@@ -114,7 +121,8 @@ export const editorialRunner = catchAsync(async (req, res) => {
         if (!claimed.count || !hasEditorialWorkflow(model)) return;
         const record = await findById(model, recordId, db);
         const user = await db.user.findUnique({ where: { id: job.scheduledBy }, select: { isActive: true, role: true } });
-        if (!record || record.status !== Status.APPROVED || !user?.isActive || !publishers.includes(user.role)) {
+        if (!record || record.status !== Status.APPROVED || !user?.isActive || !publishers.includes(user.role) ||
+          (model === "academicAsset" && !hasAcademicRights(record))) {
           if (record) await db.auditLog.create({ data: {
             entity: model, entityId: recordId, userId: user ? job.scheduledBy : undefined, action: "EDITORIAL_SCHEDULE_CANCELLED"
           } });

@@ -7,7 +7,7 @@ import { FormTextarea } from "@/components/forms/FormTextarea";
 import { removeNews, saveNews, type NewsFormState } from "./actions";
 import type { NewsPost } from "./data";
 
-export function NewsForm({ post }: { post?: NewsPost }) {
+export function NewsForm({ post, departments }: { post?: NewsPost; departments?: { id: string; name: string }[] }) {
   const [state, submit, pending] = useActionState(saveNews.bind(null, post?.id ?? null), {} as NewsFormState);
   const value = (key: keyof NewsPost) => state.values?.[key] ?? post?.[key] ?? "";
   return (
@@ -16,6 +16,13 @@ export function NewsForm({ post }: { post?: NewsPost }) {
       <FormInput label="Bengali title" name="titleBn" maxLength={250} defaultValue={value("titleBn")} />
       <FormInput label="Slug" name="slug" maxLength={200} defaultValue={value("slug")} />
       <FormTextarea label="Excerpt" name="excerpt" maxLength={500} defaultValue={value("excerpt")} />
+      {departments && <label className="grid gap-2 text-sm font-medium">Department
+        <select name="departmentId" className="h-10 rounded-md border bg-background px-3" defaultValue={value("departmentId")}>
+          <option value="">None</option>
+          {post?.departmentId && !departments.some(({ id }) => id === post.departmentId) && <option value={post.departmentId}>Current selection</option>}
+          {departments.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+        </select>
+      </label>}
       <FormTextarea label="Content" name="content" required maxLength={100000} defaultValue={value("content")} />
       <FormTextarea label="Bengali content" name="contentBn" maxLength={100000} defaultValue={value("contentBn")} />
       <FormInput label="SEO title" name="seoTitle" maxLength={250} defaultValue={value("seoTitle")} />

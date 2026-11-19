@@ -1,49 +1,35 @@
 import Link from "next/link";
-import { Mail, MapPin } from "lucide-react";
-import { publicNav } from "@/config/nav";
+import { publicNavGroups } from "@/config/nav";
 import { siteConfig } from "@/config/site";
+import { localePath, tr } from "@/lib/locale";
+import { requestLocale } from "@/lib/request-locale";
 
-const groups = [
-  { title: "Explore", links: publicNav.slice(1, 6) },
-  { title: "Academics", links: publicNav.slice(6, 10) },
-  { title: "Updates", links: publicNav.slice(10, 14) }
-];
-
-export function Footer() {
+export async function Footer() {
+  const { locale } = await requestLocale();
   return (
     <footer className="border-t border-border bg-sidebar text-sidebar-foreground">
-      <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-4">
+      <div className="container-x grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-5">
         <div>
-          <p className="font-display text-xl font-semibold tracking-[-0.02em]">{siteConfig.name}</p>
-          <p lang="bn" className="mt-2 font-bn text-sm text-sidebar-foreground/75">{siteConfig.nameBn}</p>
-          <p className="mt-5 text-sm leading-relaxed text-sidebar-foreground/70">{siteConfig.location}</p>
+          <p className="font-display text-xl font-semibold">{locale === "bn" ? siteConfig.nameBn : siteConfig.name}</p>
         </div>
-        {groups.map((group) => (
-          <div key={group.title}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-sidebar-foreground/60">{group.title}</p>
+        {publicNavGroups.map((group) => (
+          <div key={group.label}>
+            <p className="text-sm font-semibold text-sidebar-foreground">{tr(locale, group.label)}</p>
             <ul className="mt-4 grid gap-3">
               {group.links.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} className="text-sm text-sidebar-foreground/75 transition-colors hover:text-primary-foreground">
-                    {item.label}
+                  <Link href={localePath(locale, item.href)} className="text-sm text-sidebar-foreground/75 transition-colors hover:text-primary-foreground">
+                    {tr(locale, item.label)}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
         ))}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-sidebar-foreground/60">Contact</p>
-          <ul className="mt-4 grid gap-3 text-sm text-sidebar-foreground/75">
-            <li className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4" /> Patisar, Naogaon</li>
-            <li className="flex gap-2"><Mail className="mt-0.5 h-4 w-4" /> info@irri.edu.com</li>
-          </ul>
-        </div>
       </div>
       <div className="border-t border-sidebar-foreground/10">
         <div className="container-x flex flex-col gap-2 py-5 text-xs text-sidebar-foreground/60 sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} {siteConfig.acronym}. All rights reserved.</span>
-          <span>Academic research, culture, and documentation.</span>
+          <span>© {new Date().getFullYear()} {siteConfig.acronym}. {tr(locale, "All rights reserved.")}</span>
         </div>
       </div>
     </footer>

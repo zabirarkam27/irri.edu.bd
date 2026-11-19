@@ -8,24 +8,26 @@ import * as service from "@/modules/cms/cms.service";
 import type { ModelName } from "@/modules/cms/cms.service";
 import { prisma } from "@/lib/prisma";
 import { hasEditorialWorkflow } from "./editorial";
-import { validateMediaReferences } from "@/modules/media/references";
+import { managedMediaPath, validateMediaReferences } from "@/modules/media/references";
 
-const navigationPageSlugs = new Set(["about", "history", "mission-vision", "research"]);
+const navigationPageSlugs = new Set(["about", "history", "mission-vision", "research", "admissions"]);
 
 function auditFields(record: Record<string, unknown>) {
-  return Object.fromEntries(["name", "title", "slug", "status"].filter((key) => typeof record[key] === "string")
+  return Object.fromEntries(["name", "title", "slug", "status", "access", "rightsVerified"].filter((key) => ["string", "boolean"].includes(typeof record[key]))
     .map((key) => [key, record[key]]));
 }
 
 export function listController(model: ModelName, publishedOnly = false): RequestHandler {
   return catchAsync(async (req, res) => {
-    const result = await service.list(model, { ...req.query, ...(publishedOnly ? { status: "PUBLISHED" } : {}) });
+    if (model === "academicAsset") res.set("Cache-Control", "private, no-store");
+    const result = await service.list(model, { ...req.query, ...(publishedOnly ? { status: "PUBLISHED", publicOnly: true } : {}) });
     sendResponse(res, 200, { success: true, message: "Data fetched successfully", data: result.data, meta: result.meta });
   });
 }
 
 export function detailController(model: ModelName, publishedOnly = false): RequestHandler {
   return catchAsync(async (req, res) => {
+    if (model === "academicAsset") res.set("Cache-Control", "private, no-store");
     const data = await service.findByIdOrSlug(model, String(req.params.idOrSlug), publishedOnly);
     if (!data) throw new AppError(404, "Record not found");
     sendResponse(res, 200, { success: true, message: "Data fetched successfully", data });
@@ -35,13 +37,15 @@ export function detailController(model: ModelName, publishedOnly = false): Reque
 export function createController(model: ModelName): RequestHandler {
   return catchAsync(async (req, res) => {
     if (model === "event") validateEventDates(req.body.startsAt, req.body.endsAt);
+    if (model === "researchProject") validateProjectDates(req.body);
     if (hasEditorialWorkflow(model)) {
       if (req.body.status && req.body.status !== "DRAFT") throw new AppError(400, "New content must start as a draft");
       req.body.status = "DRAFT";
     }
     const data = await prisma.$transaction(async (db) => {
       await validateMediaReferences(db, req.body);
-      const record = await service.create(model, req.body, db);
+      const approval = model === "academicAsset" ? prepareRights(req.body, req.user!) : undefined;
+      const record = await service.create(model, req.body, db, approval);
       await writeAudit(req, `CREATE_${model.toUpperCase()}`, model, record.id, undefined, auditFields(record), db);
       return record;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -62,8 +66,10 @@ export function updateController(model: ModelName): RequestHandler {
         throw new AppError(400, "This slug is used by site navigation and cannot be renamed");
       }
       if (model === "event") validateEventDates(req.body.startsAt ?? oldValue.startsAt, req.body.endsAt === undefined ? oldValue.endsAt : req.body.endsAt);
+      if (model === "researchProject") validateProjectDates({ ...oldValue, ...req.body });
       await validateMediaReferences(db, req.body);
-      const record = await service.update(model, id, req.body, db);
+      const approval = model === "academicAsset" ? prepareRights(req.body, req.user!, oldValue) : undefined;
+      const record = await service.update(model, id, req.body, db, approval);
       if (typeof oldValue.slug === "string" && record.slug !== oldValue.slug && hasEditorialWorkflow(model)) {
         await db.cmsSlugRedirect.upsert({
           where: { model_oldSlug: { model, oldSlug: oldValue.slug } },
@@ -86,8 +92,35 @@ function validateEventDates(start: unknown, end: unknown) {
   }
 }
 
+function prepareRights(body: Record<string, unknown>, user: { id: string; role: string }, previous?: Record<string, unknown>) {
+  const file = body.fileUrl ?? previous?.fileUrl;
+  if (typeof file !== "string" || !managedMediaPath.test(file)) throw new AppError(400, "Choose a managed document");
+  if (previous && file !== previous.fileUrl) throw new AppError(409, "Create a replacement catalogue record for a different file");
+  if (body.replacementId && body.replacementId === previous?.id) throw new AppError(400, "A record cannot replace itself");
+  if (body.rightsVerified === true) {
+    if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) throw new AppError(403, "Only an administrator can verify written rights");
+    const statement = body.rightsStatement === undefined ? previous?.rightsStatement : body.rightsStatement;
+    const evidence = body.rightsEvidence === undefined ? previous?.rightsEvidence : body.rightsEvidence;
+    if (typeof statement !== "string" || !statement.trim() || typeof evidence !== "string" || !evidence.trim()) {
+      throw new AppError(400, "Record a rights statement and a written evidence reference before verifying");
+    }
+    return { rightsApprovedAt: new Date(), rightsApprovedBy: user.id };
+  }
+  if (body.rightsVerified === false || ["rightsStatement", "rightsEvidence"].some((key) => body[key] !== undefined && body[key] !== previous?.[key])) {
+    body.rightsVerified = false;
+    return { rightsApprovedAt: null, rightsApprovedBy: null };
+  }
+}
+
+function validateProjectDates(record: { startsAt?: string | Date | null; endsAt?: string | Date | null }) {
+  if (record.startsAt && record.endsAt && new Date(record.endsAt) < new Date(record.startsAt)) {
+    throw new AppError(400, "Project end cannot precede its start");
+  }
+}
+
 export function deleteController(model: ModelName): RequestHandler {
   return catchAsync(async (req, res) => {
+    if (model === "academicAsset") throw new AppError(409, "Archive catalogue records to preserve file rights history");
     const id = String(req.params.id);
     const data = await prisma.$transaction(async (db) => {
       const previous = await service.findById(model, id, db);

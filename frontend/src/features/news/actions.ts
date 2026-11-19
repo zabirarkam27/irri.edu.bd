@@ -15,6 +15,7 @@ const formSchema = z.object({
   titleBn: z.string().trim().max(250),
   contentBn: z.string().trim().max(100000),
   excerpt: z.string().trim().max(500),
+  departmentId: z.string().trim().max(200),
   seoTitle: z.string().trim().max(250),
   metaDescription: z.string().trim().max(500)
 });
@@ -26,12 +27,12 @@ export async function saveNews(id: string | null, _previous: NewsFormState, form
   const parsed = formSchema.safeParse(values);
   if (!parsed.success) return { error: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "), values };
 
-  const { slug, ...fields } = parsed.data;
+  const { slug, departmentId, ...fields } = parsed.data;
   try {
     await adminNewsRequest<NewsPost>(id ? `/${encodeURIComponent(id)}` : "", {
       method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...fields, ...(slug ? { slug } : {}) })
+      body: JSON.stringify({ ...fields, ...(slug ? { slug } : {}), ...(form.has("departmentId") ? { departmentId: departmentId || null } : {}) })
     });
   } catch (error) {
     if (error instanceof NewsRequestError && error.status === 401) redirect("/admin/login");
