@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-  if (!adminPassword) throw new Error("SEED_ADMIN_PASSWORD is required");
+  if (!adminPassword || adminPassword.length < 12) throw new Error("SEED_ADMIN_PASSWORD must contain at least 12 characters");
 
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
@@ -22,7 +22,7 @@ async function main() {
     }
   });
 
-  await prisma.institutionProfile.create({
+  if (!(await prisma.institutionProfile.findFirst())) await prisma.institutionProfile.create({
     data: {
       name: "International Rabindra Research Institute",
       nameBn: "আন্তর্জাতিক রবীন্দ্র রিসার্চ ইনস্টিটিউট",

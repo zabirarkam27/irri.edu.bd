@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+import { AppError } from "@/errors/AppError";
 import { prisma } from "@/lib/prisma";
 import { createSlug } from "@/utils/slug";
 import { getPagination, getSort } from "@/utils/query";
@@ -80,6 +82,17 @@ function delegate(model: ModelName) {
   return prisma[model] as any;
 }
 
+function validateWriteFields(model: ModelName, input: Record<string, unknown>) {
+  const definition = Prisma.dmmf.datamodel.models.find(({ name }) => name[0].toLowerCase() + name.slice(1) === model);
+  const protectedFields = new Set(["id", "createdAt", "updatedAt", "uploadedBy"]);
+  const allowed = new Set(definition?.fields.filter((field) =>
+    field.kind !== "object" && !field.isReadOnly && !protectedFields.has(field.name)
+  ).map(({ name }) => name));
+  if (Object.keys(input).some((key) => !allowed.has(key))) {
+    throw new AppError(400, "Unsupported or protected field");
+  }
+}
+
 function buildWhere(model: ModelName, query: Record<string, unknown>) {
   const where: Record<string, unknown> = {};
   if (query.status && statusModels.has(model)) where.status = query.status;
@@ -111,6 +124,7 @@ export async function findByIdOrSlug(model: ModelName, idOrSlug: string) {
 }
 
 export async function create(model: ModelName, input: Record<string, unknown>) {
+  validateWriteFields(model, input);
   const title = String(input.title ?? input.name ?? input.filename ?? "content");
   const data = {
     ...input,
@@ -120,6 +134,7 @@ export async function create(model: ModelName, input: Record<string, unknown>) {
 }
 
 export async function update(model: ModelName, id: string, input: Record<string, unknown>) {
+  validateWriteFields(model, input);
   return delegate(model).update({ where: { id }, data: input });
 }
 

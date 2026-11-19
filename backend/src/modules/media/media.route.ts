@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole } from "@/middlewares/auth";
 import { catchAsync } from "@/utils/catchAsync";
 import { sendResponse } from "@/utils/sendResponse";
+import { AppError } from "@/errors/AppError";
 
 const allowedTypes = new Set([
   "image/jpeg",
@@ -36,7 +37,7 @@ mediaRouter.post(
   requireRole(Role.SUPER_ADMIN, Role.ADMIN, Role.EDITOR),
   upload.single("file"),
   catchAsync(async (req, res) => {
-    if (!req.file) throw new Error("File upload failed");
+    if (!req.file) throw new AppError(400, "A supported file is required");
     const asset = await prisma.mediaAsset.create({
       data: {
         url: `/uploads/${req.file.filename}`,

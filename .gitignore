@@ -9,3 +9,5 @@ uploads
 !.env.local.example
 frontend/.next
 backend/dist
+.phase1-postgres/
+*.tsbuildinfo

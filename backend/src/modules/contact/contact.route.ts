@@ -8,5 +8,5 @@ import { validateRequest } from "@/middlewares/validateRequest";
 
 export const contactRouter = Router();
 
-contactRouter.post("/", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5 }), validateRequest(createContactSchema), createContactMessage);
+contactRouter.post("/", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, message: { success: false, message: "Too many contact submissions" } }), validateRequest(createContactSchema), createContactMessage);
 contactRouter.get("/", requireAuth, requireRole(Role.SUPER_ADMIN, Role.ADMIN, Role.MODERATOR), getContactMessages);

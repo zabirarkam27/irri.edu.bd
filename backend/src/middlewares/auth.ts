@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 import { env } from "@/config/env";
 import { AppError } from "@/errors/AppError";
+import { prisma } from "@/lib/prisma";
+import { catchAsync } from "@/utils/catchAsync";
 
 declare global {
   namespace Express {
@@ -12,14 +14,27 @@ declare global {
   }
 }
 
-export const requireAuth: RequestHandler = (req, _res, next) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+export const requireAuth: RequestHandler = catchAsync(async (req, _res, next) => {
+  const token = /^Bearer (\S+)$/i.exec(req.headers.authorization ?? "")?.[1];
   if (!token) throw new AppError(401, "Authentication required");
 
-  const decoded = jwt.verify(token, env.JWT_SECRET) as { id: string; email: string; role: Role };
-  req.user = decoded;
+  let decoded: string | jwt.JwtPayload;
+  try {
+    decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
+  } catch {
+    throw new AppError(401, "Invalid or expired session");
+  }
+  if (typeof decoded !== "object" || typeof decoded.id !== "string" || typeof decoded.exp !== "number") {
+    throw new AppError(401, "Invalid session");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: { id: true, email: true, role: true, isActive: true }
+  });
+  if (!user?.isActive) throw new AppError(401, "Invalid session");
+  req.user = { id: user.id, email: user.email, role: user.role };
   next();
-};
+});
 
 export function requireRole(...roles: Role[]): RequestHandler {
   return (req, _res, next) => {

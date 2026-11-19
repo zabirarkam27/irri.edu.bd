@@ -56,10 +56,10 @@ Generate the Prisma client:
 npm run prisma:generate --workspace=backend
 ```
 
-Run database migrations:
+Apply the tracked migrations to a new, empty PostgreSQL database:
 
 ```powershell
-npm run prisma:migrate --workspace=backend
+npm run prisma:deploy --workspace=backend
 ```
 
 Seed the first admin user and starter content:
@@ -90,16 +90,24 @@ Local URLs:
 - Backend: http://localhost:5000
 - Health check: http://localhost:5000/health
 
-## Default Admin
+## Admin Setup
 
 The seed script reads the default admin credentials from `backend/.env`:
 
 ```env
 SEED_ADMIN_EMAIL="admin@irri.edu.com"
-SEED_ADMIN_PASSWORD="ChangeMe123!"
+SEED_ADMIN_PASSWORD=""
 ```
 
-Change the email and password before seeding any production database.
+Set an email you control and a unique password of at least 12 characters. Generate separate random values for `JWT_SECRET` and `NEXTAUTH_SECRET` by running the following once for each secret:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Use `npm run prisma:migrate --workspace=backend -- --name <change>` to create future migrations on a development database. For an existing database without migration history, take a verified backup and compare its schema with the initial migration before baselining. Mark the initial migration applied with `prisma migrate resolve --applied 20261119000000_initial` only after confirming the schema matches. Do not use reset on an existing database.
+
+`/health` checks the API process. `/ready` checks PostgreSQL connectivity. The optional sample seed requires a local disposable database whose name ends in `_sample`.
 
 ## Useful Commands
 

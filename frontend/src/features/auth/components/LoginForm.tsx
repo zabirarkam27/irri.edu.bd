@@ -29,7 +29,8 @@ export function LoginForm({ callbackUrl = "/admin/dashboard" }: { callbackUrl?: 
       return;
     }
 
-    router.push(callbackUrl);
+    const target = new URL(result?.url ?? "/admin/dashboard", window.location.origin);
+    router.push(target.origin === window.location.origin && target.pathname.startsWith("/admin/") ? target.pathname + target.search : "/admin/dashboard");
     router.refresh();
   }
 

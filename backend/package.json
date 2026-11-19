@@ -2,15 +2,16 @@
   "name": "backend",
   "private": true,
   "version": "0.1.0",
-  "main": "dist/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc && tsc-alias",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "postinstall": "prisma generate",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "seed:sample": "tsx prisma/seed-sample.ts"

@@ -30,7 +30,13 @@ async function upsertInstitution() {
 }
 
 async function main() {
-  const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+  const database = new URL(process.env.DATABASE_URL ?? "");
+  if (process.env.NODE_ENV === "production" || !["localhost", "127.0.0.1", "[::1]"].includes(database.hostname) ||
+      !database.pathname.endsWith("_sample")) {
+    throw new Error("Sample seed requires a local disposable database with a name ending in _sample");
+  }
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!password || password.length < 12) throw new Error("SEED_ADMIN_PASSWORD must contain at least 12 characters");
   const passwordHash = await bcrypt.hash(password, 12);
 
   const admin = await prisma.user.upsert({

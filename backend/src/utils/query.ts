@@ -1,6 +1,6 @@
 export function getPagination(query: Record<string, unknown>) {
   const page = Number(query.page ?? 1);
-  const limit = Number(query.limit ?? 10);
+  const limit = Math.min(Number(query.limit ?? 10), 100);
   return {
     page,
     limit,
