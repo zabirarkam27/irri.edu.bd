@@ -1,12 +1,9 @@
 import Link from "next/link";
-import { Clock, Mail, MapPin, Phone } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const contacts = [
-  { label: "Address", value: "Patisar, Naogaon", icon: MapPin },
-  { label: "Phone", value: "+880 0000 000000", icon: Phone },
-  { label: "Email", value: "info@irri.edu.com", icon: Mail },
-  { label: "Hours", value: "Sun-Thu, 9 AM-5 PM", icon: Clock }
+  { label: "Address", value: "Patisar, Naogaon", icon: MapPin }
 ];
 
 export function ContactCTA() {

@@ -1,4 +1,4 @@
-import { createMetadata } from "@/lib/seo";
-import { PublicPage } from "@/features/public/PublicPage";
-export const metadata = createMetadata("History");
-export default function Page() { return <PublicPage slug="history" />; }
+import { DetailPage, publicContentMetadata } from "@/features/public/DetailPage";
+
+export function generateMetadata() { return publicContentMetadata("pages", "history", "/history"); }
+export default function Page() { return <DetailPage type="pages" slug="history" />; }

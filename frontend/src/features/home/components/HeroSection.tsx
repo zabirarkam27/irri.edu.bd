@@ -1,15 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Landmark, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { institution } from "@/features/home/data";
+import { loadInstitution } from "@/features/home/institution";
 
-const stats = [
-  ["Established", institution.established],
-  ["Departments", "3+"],
-  ["Degree Levels", "Honors · Masters · M-Phil · PhD"]
-];
-
-export function HeroSection() {
+export async function HeroSection() {
+  const institution = await loadInstitution();
+  const stats = [["Established", institution.established], ["Operations started", institution.approved]].filter(([, value]) => value);
   return (
     <section className="relative overflow-hidden bg-gradient-brand text-primary-foreground">
       <svg className="absolute inset-0 h-full w-full opacity-10" aria-hidden="true">
@@ -24,7 +20,7 @@ export function HeroSection() {
         <div className="flex flex-col justify-center lg:col-span-7">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary-foreground/90">
             <Landmark className="h-4 w-4" strokeWidth={2} />
-            Est. 2014 · Patisar, Naogaon, Bangladesh
+            {institution.location}
           </div>
           <h1 className="mt-6 max-w-5xl font-display text-4xl font-semibold leading-[1.05] tracking-[-0.02em] text-balance sm:text-5xl lg:text-6xl">
             {institution.name}

@@ -1,8 +1,13 @@
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import { getToken } from "next-auth/jwt";
 import { newsRequest, NewsRequestError } from "./data";
 
 export async function adminNewsRequest<T>(suffix: string, options?: RequestInit) {
+  return adminRequest<T>(`/admin/news${suffix}`, options);
+}
+
+export async function adminRequest<T>(path: string, options?: RequestInit) {
   const requestHeaders = await headers();
   const cookieStore = await cookies();
   const secureCookie = cookieStore.getAll().some(({ name }) =>
@@ -16,5 +21,9 @@ export async function adminNewsRequest<T>(suffix: string, options?: RequestInit)
   if (typeof session?.backendToken !== "string") throw new NewsRequestError(401, "Sign in again to manage news.");
   const outgoingHeaders = new Headers(options?.headers);
   outgoingHeaders.set("Authorization", `Bearer ${session.backendToken}`);
-  return newsRequest<T>(`/admin/news${suffix}`, { ...options, headers: outgoingHeaders });
+  return newsRequest<T>(path, { ...options, headers: outgoingHeaders });
 }
+
+export const currentAdmin = cache(async () => {
+  return (await adminRequest<{ id: string; name: string; email: string; role: string }>("/auth/me")).data;
+});

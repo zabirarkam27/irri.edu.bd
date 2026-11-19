@@ -18,6 +18,9 @@ export const globalErrorHandler: ErrorRequestHandler = (error, _req, res, _next)
     if (error.code === "P2025") {
       statusCode = 404;
       message = "Record not found";
+    } else if (error.code === "P2034") {
+      statusCode = 409;
+      message = "Another update conflicted with this request. Try again.";
     } else if (["P2002", "P2003"].includes(error.code)) {
       statusCode = 409;
       message = error.code === "P2002" ? "Duplicate record" : "Related record conflict";

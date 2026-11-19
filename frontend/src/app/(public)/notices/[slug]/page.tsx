@@ -1,5 +1,10 @@
-import { DetailPage } from "@/features/public/DetailPage";
-export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+import { DetailPage, publicContentMetadata } from "@/features/public/DetailPage";
+
+type Props = { params: Promise<{ slug: string }> };
+export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  return <DetailPage type="notices" slug={slug} />;
+  return publicContentMetadata("notices", slug, `/notices/${encodeURIComponent(slug)}`);
+}
+export default async function Page({ params }: Props) {
+  return <DetailPage type="notices" slug={(await params).slug} />;
 }

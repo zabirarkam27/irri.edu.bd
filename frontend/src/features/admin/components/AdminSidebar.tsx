@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Inbox, LayoutDashboard, LogOut, Shield } from "lucide-react";
+import { BarChart3, BookOpen, Inbox, LayoutDashboard, Shield } from "lucide-react";
 import { adminNav } from "@/config/nav";
 import { cn } from "@/lib/utils";
 
 const groups = [
   { title: "Overview", icon: LayoutDashboard, items: ["dashboard", "profile", "institution"] },
-  { title: "Content", icon: BookOpen, items: ["pages", "administration", "departments", "programs", "courses", "news", "notices", "events", "gallery", "publications", "media"] },
+  { title: "Content", icon: BookOpen, items: ["pages", "administration", "departments", "programs", "courses", "news", "notices", "events", "gallery", "categories", "publications", "media"] },
   { title: "Communication", icon: Inbox, items: ["contact-messages"] },
   { title: "System", icon: Shield, items: ["audit-logs", "users", "settings"] }
 ];
@@ -17,8 +17,9 @@ function findNav(segment: string) {
   return adminNav.find((item) => item.href.endsWith(`/${segment}`));
 }
 
-export function AdminSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
+export function AdminSidebar({ role, className, onNavigate }: { role: string; className?: string; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const admin = role === "ADMIN" || role === "SUPER_ADMIN";
 
   return (
     <aside className={cn("flex min-h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground", className)}>
@@ -32,13 +33,13 @@ export function AdminSidebar({ className, onNavigate }: { className?: string; on
         </div>
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-        {groups.map((group) => (
+        {groups.filter((group) => (group.title !== "System" || admin) && (group.title !== "Communication" || role !== "EDITOR")).map((group) => (
           <div key={group.title}>
             <p className="mb-2 flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/45">
               <group.icon className="h-4 w-4" strokeWidth={2} /> {group.title}
             </p>
             <div className="grid gap-1">
-              {group.items.map((segment, index) => {
+              {group.items.filter((segment) => segment !== "institution" || admin).map((segment) => {
                 const item = findNav(segment);
                 if (!item) return null;
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -57,11 +58,6 @@ export function AdminSidebar({ className, onNavigate }: { className?: string; on
           </div>
         ))}
       </nav>
-      <div className="border-t border-sidebar-foreground/10 p-3">
-        <Link href="/admin/login" onClick={onNavigate} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground">
-          <LogOut className="h-4 w-4" strokeWidth={2} /> Sign out
-        </Link>
-      </div>
     </aside>
   );
 }

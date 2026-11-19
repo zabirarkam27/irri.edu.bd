@@ -6,12 +6,12 @@ import { AdminSidebar } from "@/features/admin/components/AdminSidebar";
 import { AdminTopbar } from "@/features/admin/components/AdminTopbar";
 import { Button } from "@/components/ui/button";
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({ account, children }: { account: { name: string; role: string }; children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-background">
-      <AdminSidebar className="hidden lg:flex" />
+      <AdminSidebar role={account.role} className="hidden lg:flex" />
       {isOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
@@ -21,7 +21,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setIsOpen(false)}
           />
           <div className="relative h-full w-[min(20rem,calc(100vw-2rem))] shadow-lifted">
-            <AdminSidebar className="h-full w-full" onNavigate={() => setIsOpen(false)} />
+            <AdminSidebar role={account.role} className="h-full w-full" onNavigate={() => setIsOpen(false)} />
             <Button
               variant="ghost"
               size="sm"
@@ -35,7 +35,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       <div className="min-w-0 flex-1">
-        <AdminTopbar onMenuClick={() => setIsOpen(true)} />
+        <AdminTopbar account={account} onMenuClick={() => setIsOpen(true)} />
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

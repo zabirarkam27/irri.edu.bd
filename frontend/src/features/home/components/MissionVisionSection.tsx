@@ -1,8 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { institution } from "@/features/home/data";
+import { loadInstitution } from "@/features/home/institution";
 
-export function MissionVisionSection() {
+export async function MissionVisionSection() {
+  const institution = await loadInstitution();
   return (
     <section className="border-y border-border bg-surface">
       <div className="container-x py-16 md:py-20 lg:py-24">

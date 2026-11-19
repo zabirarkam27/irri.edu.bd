@@ -1,2 +1,5 @@
-import { AdminCrudPage } from "@/features/admin/components/AdminCrudPage";
-export default function Page() { return <AdminCrudPage title="Users" />; }
+import { AdminDirectory } from "@/features/cms/AdminOperations";
+import type { SearchParams } from "@/features/cms/config";
+export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  return <AdminDirectory kind="users" searchParams={searchParams} />;
+}

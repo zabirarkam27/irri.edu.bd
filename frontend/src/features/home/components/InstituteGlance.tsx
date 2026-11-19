@@ -1,18 +1,18 @@
 import { BookOpen, CalendarCheck, GraduationCap, Landmark, MapPin, ScrollText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { institution } from "@/features/home/data";
+import { loadInstitution } from "@/features/home/institution";
 
-const items = [
+export async function InstituteGlance() {
+  const institution = await loadInstitution();
+  const items = [
   { icon: Landmark, label: "English Name", value: institution.name },
   { icon: ScrollText, label: "Bengali Name", value: institution.nameBn, bn: true },
   { icon: MapPin, label: "Location", value: institution.location },
   { icon: CalendarCheck, label: "Established", value: institution.established },
   { icon: GraduationCap, label: "Operations Started", value: institution.approved },
   { icon: BookOpen, label: "Motto", value: institution.motto }
-];
-
-export function InstituteGlance() {
+  ].filter((item) => item.value);
   return (
     <section className="bg-background">
       <div className="container-x py-16 md:py-20 lg:py-24">

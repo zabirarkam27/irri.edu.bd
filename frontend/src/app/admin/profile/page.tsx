@@ -1,2 +1,2 @@
-import { AdminFormPage } from "@/features/admin/components/AdminFormPage";
-export default function Page() { return <AdminFormPage title="Profile" />; }
+import { Profile } from "@/features/cms/AdminOperations";
+export default function Page() { return <Profile />; }

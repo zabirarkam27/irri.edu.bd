@@ -3,6 +3,7 @@ import { AppError } from "@/errors/AppError";
 import { prisma } from "@/lib/prisma";
 import { createSlug } from "@/utils/slug";
 import { getPagination, getSort } from "@/utils/query";
+import { isCmsWriteField } from "./cms.validation";
 
 type ModelName =
   | "page"
@@ -78,16 +79,13 @@ const sortableFields: Partial<Record<ModelName, string[]>> = {
   auditLog: ["action", "entity", "createdAt"]
 };
 
-function delegate(model: ModelName) {
-  return prisma[model] as any;
+function delegate(model: ModelName, db: Prisma.TransactionClient = prisma) {
+  return db[model] as any;
 }
 
 function validateWriteFields(model: ModelName, input: Record<string, unknown>) {
   const definition = Prisma.dmmf.datamodel.models.find(({ name }) => name[0].toLowerCase() + name.slice(1) === model);
-  const protectedFields = new Set(["id", "createdAt", "updatedAt", "uploadedBy"]);
-  const allowed = new Set(definition?.fields.filter((field) =>
-    field.kind !== "object" && !field.isReadOnly && !protectedFields.has(field.name)
-  ).map(({ name }) => name));
+  const allowed = new Set(definition?.fields.filter((field) => isCmsWriteField(model, field)).map(({ name }) => name));
   if (Object.keys(input).some((key) => !allowed.has(key))) {
     throw new AppError(400, "Unsupported or protected field");
   }
@@ -96,6 +94,8 @@ function validateWriteFields(model: ModelName, input: Record<string, unknown>) {
 function buildWhere(model: ModelName, query: Record<string, unknown>) {
   const where: Record<string, unknown> = {};
   if (query.status && statusModels.has(model)) where.status = query.status;
+  if (model === "person" && query.type) where.type = query.type;
+  if (model === "auditLog" && query.entity) where.entity = query.entity;
   if (query.search) {
     where.OR = (searchableFields[model] ?? ["title"]).map((field) => ({
       [field]: { contains: String(query.search), mode: "insensitive" }
@@ -110,7 +110,7 @@ export async function list(model: ModelName, query: Record<string, unknown>) {
   const orderBy = getSort(query, sortableFields[model] ?? ["createdAt"]);
   const db = delegate(model);
   const [data, total] = await Promise.all([
-    db.findMany({ where, skip, take, orderBy }),
+    db.findMany({ where, skip, take, orderBy: [orderBy, { id: "asc" }], ...(model === "galleryAlbum" ? { include: { images: { orderBy: [{ order: "asc" }, { id: "asc" }], take: 1 } } } : {}) }),
     db.count({ where })
   ]);
 
@@ -120,28 +120,35 @@ export async function list(model: ModelName, query: Record<string, unknown>) {
 export async function findByIdOrSlug(model: ModelName, idOrSlug: string, publishedOnly = false) {
   const db = delegate(model);
   const where = slugModels.has(model) ? { OR: [{ id: idOrSlug }, { slug: idOrSlug }] } : { id: idOrSlug };
-  return db.findFirst({ where: { ...where, ...(publishedOnly ? { status: "PUBLISHED" } : {}) } });
+  return db.findFirst({
+    where: { ...where, ...(publishedOnly ? { status: "PUBLISHED" } : {}) },
+    ...(model === "galleryAlbum" ? { include: { images: { orderBy: { order: "asc" } } } } : {})
+  });
 }
 
-export async function create(model: ModelName, input: Record<string, unknown>) {
+export async function create(model: ModelName, input: Record<string, unknown>, db: Prisma.TransactionClient = prisma) {
   validateWriteFields(model, input);
   const title = String(input.title ?? input.name ?? input.filename ?? "content");
   const slug = slugModels.has(model) ? input.slug ?? createSlug(title) : undefined;
-  if (model === "newsPost" && !slug) throw new AppError(400, "Provide a slug for this title");
+  if (slugModels.has(model) && !slug) throw new AppError(400, "Provide a slug for this title");
   const data = {
     ...input,
     ...(slug !== undefined ? { slug } : {})
   };
-  return delegate(model).create({ data });
+  return delegate(model, db).create({ data });
 }
 
-export async function update(model: ModelName, id: string, input: Record<string, unknown>) {
+export async function update(model: ModelName, id: string, input: Record<string, unknown>, db: Prisma.TransactionClient = prisma) {
   validateWriteFields(model, input);
-  return delegate(model).update({ where: { id }, data: input });
+  return delegate(model, db).update({ where: { id }, data: input });
 }
 
-export async function remove(model: ModelName, id: string) {
-  return delegate(model).delete({ where: { id } });
+export async function remove(model: ModelName, id: string, db: Prisma.TransactionClient = prisma) {
+  return delegate(model, db).delete({ where: { id } });
+}
+
+export async function findById(model: ModelName, id: string, db: Prisma.TransactionClient = prisma) {
+  return delegate(model, db).findUnique({ where: { id } });
 }
 
 export type { ModelName };

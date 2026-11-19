@@ -1,2 +1,5 @@
-import { AdminFormPage } from "@/features/admin/components/AdminFormPage";
-export default function Page() { return <AdminFormPage title="Edit Page" />; }
+import { AdminContentEditor } from "@/features/cms/AdminContent";
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  return <AdminContentEditor resource="pages" id={(await params).id} />;
+}

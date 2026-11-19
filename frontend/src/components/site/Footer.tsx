@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import { publicNav } from "@/config/nav";
 import { siteConfig } from "@/config/site";
 
@@ -36,7 +36,6 @@ export function Footer() {
           <p className="text-xs font-semibold uppercase tracking-widest text-sidebar-foreground/60">Contact</p>
           <ul className="mt-4 grid gap-3 text-sm text-sidebar-foreground/75">
             <li className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4" /> Patisar, Naogaon</li>
-            <li className="flex gap-2"><Phone className="mt-0.5 h-4 w-4" /> +880 0000 000000</li>
             <li className="flex gap-2"><Mail className="mt-0.5 h-4 w-4" /> info@irri.edu.com</li>
           </ul>
         </div>

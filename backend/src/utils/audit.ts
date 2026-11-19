@@ -1,8 +1,9 @@
 import type { Request } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export async function writeAudit(req: Request, action: string, entity: string, entityId?: string, oldValue?: unknown, newValue?: unknown) {
-  await prisma.auditLog.create({
+export async function writeAudit(req: Request, action: string, entity: string, entityId?: string, oldValue?: unknown, newValue?: unknown, db: Prisma.TransactionClient = prisma) {
+  await db.auditLog.create({
     data: {
       userId: req.user?.id,
       action,

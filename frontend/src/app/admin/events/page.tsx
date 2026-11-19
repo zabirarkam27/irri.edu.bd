@@ -1,2 +1,6 @@
-import { AdminCrudPage } from "@/features/admin/components/AdminCrudPage";
-export default function Page() { return <AdminCrudPage title="Events" />; }
+import { AdminContentList } from "@/features/cms/AdminContent";
+import type { SearchParams } from "@/features/cms/config";
+
+export default function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  return <AdminContentList resource="events" searchParams={searchParams} />;
+}

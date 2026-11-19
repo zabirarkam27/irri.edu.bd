@@ -28,6 +28,7 @@ export const adminNav = [
   "notices",
   "events",
   "gallery",
+  "categories",
   "publications",
   "media",
   "contact-messages",

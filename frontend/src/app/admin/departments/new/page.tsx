@@ -1,2 +1,5 @@
-import { AdminFormPage } from "@/features/admin/components/AdminFormPage";
-export default function Page() { return <AdminFormPage title="New Department" />; }
+import { AdminContentEditor } from "@/features/cms/AdminContent";
+
+export default function Page() {
+  return <AdminContentEditor resource="departments" />;
+}
