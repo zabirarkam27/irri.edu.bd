@@ -27,12 +27,21 @@
 3. Confirm that the backend production environment has the private Blob token and set a strong server-only `CRON_SECRET` before enabling scheduled publication.
 4. Deploy the backend and frontend together, then verify publishing, media visibility, and cron delivery through the production domains.
 
-The Phase 2 release was pushed and promoted before Phase 3 work. This migration was applied to the disposable test database during development. The production database was not migrated in that release.
+## Production release
+
+On 19 November 2026, the production schema matched the initial Prisma schema but had no applied migration records. An access-restricted local backup archive was created and verified before recording the initial baseline and applying `20261119120000_media_editorial`. Prisma reported no schema difference after migration.
+
+Vercel production deployments:
+
+- [Frontend deployment](https://vercel.com/zabirarkam27s-projects/irri-frontend/3Q9p8FXw4Ya5P2eow2J6LE64r9G5)
+- [Backend deployment](https://vercel.com/zabirarkam27s-projects/irri-backend/3PPtw6Mois6h4UxrTn7S1hJ9Uqnv)
+
+`CRON_SECRET` is configured as a sensitive production backend variable. The Vercel project lists `/api/v1/editorial/run` at `0 2 * * *`. The live route rejected an anonymous request, and an authenticated manual run completed with zero due or failed jobs. This verified the route and its credentials before the next automatic invocation.
 
 ## Verification
 
 - Backend and frontend production builds passed. The PostgreSQL and Next.js HTTP suite passed with the Phase 3 migration, including upload, private preview, replacement, linked-file deletion protection, review, scheduling, and published-only access.
 - The linked Private Blob store passed a write, unauthenticated access denial, a byte-for-byte read in a fresh process, and cleanup using a disposable fixture.
-- The live Phase 2 site served the homepage, login, News, Notices and Academic Programs. Unauthenticated access to the admin dashboard redirected to sign-in. The promoted backend passed its PostgreSQL readiness check.
-- Compatible Blob and Sharp releases addressed the new dependency findings. Repository-wide npm audit still reports findings in other dependencies. Live Phase 3 migrations and the live cron invocation were not exercised.
+- The live backend passed PostgreSQL readiness. The live frontend returned 401 from the authenticated media library endpoint without a session.
+- Compatible dependency updates and removal of an unused legacy Auth.js package lowered the repository-wide npm audit count from 30 to 9, with zero critical findings remaining. Six high and three moderate findings remain. No forced major upgrades were applied.
 - The regenerated lockfile retains the Linux Sharp binaries and passed an isolated Linux-targeted npm install dry run.
